@@ -1,6 +1,7 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
+import { supabase } from '@/lib/supabase'
 
 type WaitlistEntry = {
   id: string
@@ -36,9 +37,40 @@ function getSignupsThisWeek(entries: WaitlistEntry[]) {
   return entries.filter((e) => new Date(e.created_at) >= weekAgo).length
 }
 
-export default function AdminWaitlist({ entries }: { entries: WaitlistEntry[] }) {
+export default function AdminWaitlist({ entries: initialEntries }: { entries: WaitlistEntry[] }) {
+  const [entries, setEntries] = useState<WaitlistEntry[]>(initialEntries)
   const [search, setSearch] = useState('')
+  const [isLive, setIsLive] = useState(false)
   const total = entries.length
+
+  // Realtime subscription
+  useEffect(() => {
+    const channel = supabase
+      .channel('waitlist-realtime')
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'waitlist' },
+        (payload) => {
+          const newEntry = payload.new as WaitlistEntry
+          setEntries((prev) => [newEntry, ...prev])
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: 'DELETE', schema: 'public', table: 'waitlist' },
+        (payload) => {
+          const deletedId = payload.old.id
+          setEntries((prev) => prev.filter((e) => e.id !== deletedId))
+        }
+      )
+      .subscribe((status) => {
+        setIsLive(status === 'SUBSCRIBED')
+      })
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
+  }, [])
 
   const filtered = useMemo(() => {
     if (!search.trim()) return entries
@@ -109,16 +141,27 @@ export default function AdminWaitlist({ entries }: { entries: WaitlistEntry[] })
             className="w-full pl-10 pr-4 py-2.5 rounded-lg bg-slate-800 border border-slate-700 text-[var(--color-text-primary)] placeholder-[var(--color-text-muted)] focus:outline-none focus:border-[var(--color-accent)] focus:ring-1 focus:ring-[var(--color-accent)] transition-colors text-sm"
           />
         </div>
-        <button
-          onClick={exportCSV}
-          disabled={total === 0}
-          className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-[var(--color-accent)] hover:bg-[var(--color-accent-hover)] text-slate-900 font-semibold text-sm transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed shrink-0"
-        >
-          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
-          </svg>
-          Export CSV
-        </button>
+        <div className="flex items-center gap-3">
+          {/* Live indicator */}
+          <div className="flex items-center gap-2 px-3 py-2.5 rounded-lg bg-slate-800 border border-slate-700 text-xs">
+            <span
+              className={`w-2 h-2 rounded-full ${isLive ? 'bg-emerald-400 animate-pulse' : 'bg-slate-500'}`}
+            />
+            <span className={isLive ? 'text-emerald-400' : 'text-[var(--color-text-muted)]'}>
+              {isLive ? 'Live' : 'Connecting...'}
+            </span>
+          </div>
+          <button
+            onClick={exportCSV}
+            disabled={total === 0}
+            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-[var(--color-accent)] hover:bg-[var(--color-accent-hover)] text-slate-900 font-semibold text-sm transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed shrink-0"
+          >
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
+            </svg>
+            Export CSV
+          </button>
+        </div>
       </div>
 
       {/* Table */}
