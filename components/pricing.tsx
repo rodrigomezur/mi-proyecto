@@ -65,7 +65,7 @@ export default function Pricing() {
             {plans.map((plan, i) => (
               <div
                 key={i}
-                className={`relative flex flex-col bg-slate-800 rounded-xl p-8 border ${plan.popular ? 'border-[var(--color-accent)]' : 'border-slate-700'}`}
+                className={`relative flex flex-col bg-slate-800 rounded-xl p-6 md:p-8 border ${plan.popular ? 'border-[var(--color-accent)] shadow-lg shadow-[var(--color-accent)]/5' : 'border-slate-700'}`}
                 data-aos="fade-up"
                 data-aos-delay={`${i * 100}`}
               >

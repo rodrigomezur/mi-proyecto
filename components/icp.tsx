@@ -42,7 +42,7 @@ export default function Icp() {
             {cards.map((card, i) => (
               <div
                 key={i}
-                className="flex flex-col bg-slate-800 border border-slate-700 rounded-lg overflow-hidden"
+                className="flex flex-col bg-slate-800 border border-slate-700 rounded-xl overflow-hidden"
                 data-aos="fade-up"
                 data-aos-delay={`${i * 150}`}
               >

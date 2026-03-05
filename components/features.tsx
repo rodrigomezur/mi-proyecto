@@ -1,112 +1,82 @@
-'use client'
-
-import { useEffect } from 'react'
 import Image from 'next/image'
 import Illustration from '@/public/images/features-illustration.svg'
 
-// Import Swiper
-import Swiper, { Autoplay, Navigation } from 'swiper'
-import 'swiper/swiper.min.css'
-Swiper.use([Autoplay, Navigation])
-
 const steps = [
   {
-    icon: '🔗',
+    icon: (
+      <svg className="w-6 h-6 text-[var(--color-accent)]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M13.19 8.688a4.5 4.5 0 011.242 7.244l-4.5 4.5a4.5 4.5 0 01-6.364-6.364l1.757-1.757m9.86-2.06a4.5 4.5 0 00-1.242-7.244l4.5-4.5a4.5 4.5 0 016.364 6.364l-1.757 1.757" />
+      </svg>
+    ),
     title: 'Connect Your Meta Accounts',
-    body: 'Link one account or thirty. Creatiq syncs all active ads — creatives, spend, and performance data — and keeps everything updated automatically.',
+    body: 'Link one account or thirty. Creatiq syncs all active ads, creatives, spend, and performance data automatically.',
   },
   {
-    icon: '🤖',
+    icon: (
+      <svg className="w-6 h-6 text-[var(--color-accent)]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09zM18.259 8.715L18 9.75l-.259-1.035a3.375 3.375 0 00-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 002.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 002.455 2.456L21.75 6l-1.036.259a3.375 3.375 0 00-2.455 2.456z" />
+      </svg>
+    ),
     title: 'AI Reads Every Creative',
-    body: 'Each video and image ad is analyzed and classified by hook tactic, message angle, funnel stage (TOF/MOF/BOF), and asset type. No manual tagging.',
+    body: 'Each ad is classified by hook tactic, message angle, funnel stage, and asset type. No manual tagging ever.',
   },
   {
-    icon: '⚡',
+    icon: (
+      <svg className="w-6 h-6 text-[var(--color-accent)]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 3v11.25A2.25 2.25 0 006 16.5h2.25M3.75 3h-1.5m1.5 0h16.5m0 0h1.5m-1.5 0v11.25A2.25 2.25 0 0118 16.5h-2.25m-7.5 0h7.5m-7.5 0l-1 3m8.5-3l1 3m0 0l.5 1.5m-.5-1.5h-9.5m0 0l-.5 1.5m.75-9l3-3 2.148 2.148A12.061 12.061 0 0116.5 7.605" />
+      </svg>
+    ),
     title: 'Get Clear Recommendations',
-    body: 'Creatiq crosses AI labels with your real Meta metrics and tells you exactly what to scale, kill, and iterate — with briefs your creative team can act on today.',
+    body: 'Creatiq crosses AI labels with your real Meta metrics and tells you exactly what to scale, kill, and iterate.',
   },
 ]
 
 export default function Features() {
-
-  useEffect(() => {
-    const carousel = new Swiper('.carousel', {
-      breakpoints: {
-        320: {
-          slidesPerView: 1,
-        },
-        640: {
-          slidesPerView: 2,
-        },
-        1024: {
-          slidesPerView: 3,
-        },
-      },
-      grabCursor: true,
-      loop: false,
-      centeredSlides: false,
-      initialSlide: 0,
-      spaceBetween: 24,
-      autoplay: {
-        delay: 7000,
-      },
-      navigation: {
-        nextEl: '.carousel-next',
-        prevEl: '.carousel-prev',
-      },
-    })
-  }, [])
-
   return (
-    <section className="relative">
+    <section className="relative border-t border-slate-800">
       {/* Bg illustration */}
       <div className="absolute left-1/2 -translate-x-1/2 pointer-events-none -mt-20 -z-10" aria-hidden="true">
-        <Image src={Illustration} className="max-w-none" width="1440" height="440" alt="Illustration" />
+        <Image src={Illustration} className="max-w-none" width="1440" height="440" alt="" />
       </div>
       <div className="max-w-6xl mx-auto px-4 sm:px-6">
         <div className="py-12 md:py-20">
           {/* Section header */}
-          <div className="max-w-3xl mx-auto text-center pb-12 md:pb-20">
+          <div className="max-w-3xl mx-auto text-center pb-12 md:pb-16">
             <h2 className="h2 font-hkgrotesk mb-4">From raw ads to clear decisions.</h2>
-            <div className="max-w-2xl mx-auto">
-              <p className="text-xl text-[var(--color-text-muted)]">
-                Three steps. Fully automatic.
-              </p>
-            </div>
+            <p className="text-xl text-[var(--color-text-muted)]">
+              Three steps. Fully automatic.
+            </p>
           </div>
-          {/* Carousel */}
-          <div className="carousel swiper-container">
-            <div className="swiper-wrapper">
-              {steps.map((step, i) => (
-                <div key={i} className="swiper-slide h-auto flex flex-col bg-slate-800 p-6 rounded-sm border border-slate-700">
-                  <div className="text-4xl mb-4">{step.icon}</div>
-                  <div className="grow">
-                    <div className="font-hkgrotesk font-bold text-xl text-[var(--color-text-primary)] mb-2">{step.title}</div>
-                    <div className="text-[var(--color-text-muted)]">
-                      {step.body}
-                    </div>
-                  </div>
-                  <div className="mt-4 text-xs font-semibold text-[var(--color-accent)] uppercase tracking-wider">
-                    Step {i + 1}
-                  </div>
+
+          {/* Steps grid */}
+          <div className="grid md:grid-cols-3 gap-6 md:gap-8 max-w-5xl mx-auto">
+            {steps.map((step, i) => (
+              <div
+                key={i}
+                className="relative flex flex-col bg-slate-800 p-6 md:p-8 rounded-xl border border-slate-700"
+                data-aos="fade-up"
+                data-aos-delay={`${i * 150}`}
+              >
+                {/* Step number */}
+                <div className="absolute -top-3 -left-1 md:-left-2">
+                  <span className="font-[family-name:var(--font-bebas-neue)] text-5xl md:text-6xl text-[var(--color-accent)] opacity-20 select-none">
+                    {String(i + 1).padStart(2, '0')}
+                  </span>
                 </div>
-              ))}
-            </div>
-          </div>
-          {/* Arrows */}
-          <div className="flex mt-12 space-x-4 justify-end">
-            <button className="carousel-prev relative z-20 w-14 h-14 rounded-full flex items-center justify-center group border border-slate-700 bg-slate-800 hover:bg-slate-700 transition duration-150 ease-in-out">
-              <span className="sr-only">Previous</span>
-              <svg className="w-4 h-4 fill-[var(--color-text-muted)] transition duration-150 ease-in-out" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg">
-                <path d="M6.7 14.7l1.4-1.4L3.8 9H16V7H3.8l4.3-4.3-1.4-1.4L0 8z" />
-              </svg>
-            </button>
-            <button className="carousel-next relative z-20 w-14 h-14 rounded-full flex items-center justify-center group border border-slate-700 bg-slate-800 hover:bg-slate-700 transition duration-150 ease-in-out">
-              <span className="sr-only">Next</span>
-              <svg className="w-4 h-4 fill-[var(--color-text-muted)] transition duration-150 ease-in-out" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg">
-                <path d="M9.3 14.7l-1.4-1.4L12.2 9H0V7h12.2L7.9 2.7l1.4-1.4L16 8z" />
-              </svg>
-            </button>
+
+                {/* Icon */}
+                <div className="w-12 h-12 rounded-lg bg-[var(--color-accent-bg)] border border-[var(--color-accent-border)] flex items-center justify-center mb-4">
+                  {step.icon}
+                </div>
+
+                <h3 className="font-hkgrotesk font-bold text-lg text-[var(--color-text-primary)] mb-2">
+                  {step.title}
+                </h3>
+                <p className="text-[var(--color-text-muted)] text-sm leading-relaxed flex-1">
+                  {step.body}
+                </p>
+              </div>
+            ))}
           </div>
         </div>
       </div>

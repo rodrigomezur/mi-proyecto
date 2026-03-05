@@ -1,13 +1,15 @@
 export const metadata = {
-  title: 'Home - Cube',
-  description: 'Page description',
+  title: 'Creatiq — Know why your ads work',
+  description: 'AI-powered creative analytics that connects what your ads look like to what they actually do.',
 }
 
 import Hero from '@/components/hero'
-import Testimonials from '@/components/testimonials'
+import LogoBar from '@/components/logo-bar'
+import Problem from '@/components/problem'
 import Features from '@/components/features'
 import Features02 from '@/components/features-02'
 import Stats from '@/components/stats'
+import Testimonials from '@/components/testimonials'
 import Icp from '@/components/icp'
 import Pricing from '@/components/pricing'
 import Faqs from '@/components/faqs'
@@ -17,10 +19,12 @@ export default function Home() {
   return (
     <>
       <Hero />
-      <Testimonials />
+      <LogoBar />
+      <Problem />
       <Features />
       <Features02 />
       <Stats />
+      <Testimonials />
       <Icp />
       <Pricing />
       <Faqs />
