@@ -27,9 +27,9 @@ export default function Header({ nav = true }: { nav?: boolean }) {
                 <li>
                   <Link
                     className="font-medium text-sm text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] px-4 lg:px-6 py-2 flex items-center transition duration-150 ease-in-out uppercase tracking-wider"
-                    href="/signin"
+                    href="/dashboard"
                   >
-                    Sign in
+                    Go to Dashboard <span className="ml-1 tracking-normal">&rarr;</span>
                   </Link>
                 </li>
                 <li className="ml-3">
@@ -79,10 +79,10 @@ export default function Header({ nav = true }: { nav?: boolean }) {
               <li>
                 <Link
                   className="block font-medium text-sm text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] px-4 py-3 rounded-lg hover:bg-slate-800 transition uppercase tracking-wider"
-                  href="/signin"
+                  href="/dashboard"
                   onClick={() => setMobileOpen(false)}
                 >
-                  Sign in
+                  Go to Dashboard &rarr;
                 </Link>
               </li>
               <li>

@@ -2,7 +2,35 @@
    Theme variables
    ============================== */
 
+/* ── Dashboard tokens (theme-invariant) ── */
+:root {
+  --sidebar-w: 220px;
+  --dash-red: #ff4444;
+  --dash-amber: #f59e0b;
+  --dash-green: #22c55e;
+  --dash-blue: #3b82f6;
+}
+
+/* ── Dashboard scrollbar ── */
+.dashboard-scroll::-webkit-scrollbar { width: 5px; height: 5px; }
+.dashboard-scroll::-webkit-scrollbar-track { background: transparent; }
+.dashboard-scroll::-webkit-scrollbar-thumb { background: var(--dash-bg4); border-radius: 3px; }
+.dashboard-scroll::-webkit-scrollbar-thumb:hover { background: var(--dash-border-bright); }
+
 [data-theme="night"] {
+  /* Dashboard */
+  --acid: #C8FF00;
+  --acid-dim: #8fb300;
+  --dash-bg: #080808;
+  --dash-bg2: #111111;
+  --dash-bg3: #1a1a1a;
+  --dash-bg4: #242424;
+  --dash-border: #2a2a2a;
+  --dash-border-bright: #383838;
+  --dash-text: #e8e8e8;
+  --dash-text-muted: #666;
+  --dash-text-dim: #999;
+  /* Landing */
   --color-accent: #C8FF3E;
   --color-accent-hover: #d4ff5e;
   --color-accent-bg: rgba(200, 255, 62, 0.10);
@@ -20,6 +48,19 @@
 }
 
 [data-theme="day"] {
+  /* Dashboard */
+  --acid: #6b9900;
+  --acid-dim: #4a6600;
+  --dash-bg: #f8f8f4;
+  --dash-bg2: #ffffff;
+  --dash-bg3: #f0f0eb;
+  --dash-bg4: #e8e8e2;
+  --dash-border: #e0e0d8;
+  --dash-border-bright: #d0d0c8;
+  --dash-text: #0a0a0a;
+  --dash-text-muted: #888;
+  --dash-text-dim: #555;
+  /* Landing */
   --color-accent: #6B8F00;
   --color-accent-hover: #7BA000;
   --color-accent-bg: rgba(107, 143, 0, 0.10);
