@@ -1,7 +1,7 @@
 import './css/style.css'
 
 import { ClerkProvider } from '@clerk/nextjs'
-import { Inter } from 'next/font/google'
+import { Inter, Geist } from 'next/font/google'
 import { Syne, DM_Sans, DM_Mono } from 'next/font/google'
 import localFont from 'next/font/local'
 
@@ -53,6 +53,10 @@ const hkgrotesk = localFont({
 
 // Keep Bebas Neue for landing page branding
 import { Bebas_Neue } from 'next/font/google'
+import { cn } from "@/lib/utils";
+
+const geist = Geist({subsets:['latin'],variable:'--font-sans'});
+
 const bebasNeue = Bebas_Neue({
   subsets: ['latin'],
   weight: '400',
@@ -72,7 +76,7 @@ export default function RootLayout({
 }) {
   return (
     <ClerkProvider>
-      <html lang="en" data-theme="night" suppressHydrationWarning>
+      <html lang="en" data-theme="night" suppressHydrationWarning className={cn("font-sans", geist.variable)}>
         <head>
           <script
             dangerouslySetInnerHTML={{
