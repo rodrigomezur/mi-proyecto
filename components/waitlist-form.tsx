@@ -1,7 +1,8 @@
 'use client'
 
 import { useState } from 'react'
-import { supabase } from '@/lib/supabase'
+
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
 export default function WaitlistForm() {
   const [email, setEmail] = useState('')
@@ -10,27 +11,38 @@ export default function WaitlistForm() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!email) return
 
-    setStatus('loading')
-    setErrorMsg('')
-
-    const { error } = await supabase
-      .from('waitlist')
-      .insert([{ email }])
-
-    if (error) {
-      if (error.code === '23505') {
-        setErrorMsg('You\'re already on the list! We\'ll reach out soon.')
-      } else {
-        setErrorMsg('Something went wrong. Please try again.')
-      }
+    const cleaned = email.trim().toLowerCase()
+    if (!cleaned || !EMAIL_REGEX.test(cleaned) || cleaned.length > 254) {
+      setErrorMsg('Please enter a valid email address.')
       setStatus('error')
       return
     }
 
-    setStatus('success')
-    setEmail('')
+    setStatus('loading')
+    setErrorMsg('')
+
+    try {
+      const res = await fetch('/api/waitlist', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: cleaned }),
+      })
+
+      const data = await res.json()
+
+      if (!res.ok) {
+        setErrorMsg(data.error || 'Something went wrong. Please try again.')
+        setStatus('error')
+        return
+      }
+
+      setStatus('success')
+      setEmail('')
+    } catch {
+      setErrorMsg('Something went wrong. Please try again.')
+      setStatus('error')
+    }
   }
 
   if (status === 'success') {
@@ -56,6 +68,7 @@ export default function WaitlistForm() {
             onChange={(e) => setEmail(e.target.value)}
             placeholder="you@company.com"
             required
+            maxLength={254}
             autoComplete="email"
             disabled={status === 'loading'}
             className="w-full px-4 py-3 rounded-lg bg-slate-800 border border-slate-700 text-[var(--color-text-primary)] placeholder-[var(--color-text-muted)] focus:outline-none focus:border-[var(--color-accent)] focus:ring-1 focus:ring-[var(--color-accent)] transition-colors text-sm disabled:opacity-50"

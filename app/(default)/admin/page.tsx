@@ -1,4 +1,6 @@
-import { supabase } from '@/lib/supabase'
+import { auth } from '@clerk/nextjs/server'
+import { redirect } from 'next/navigation'
+import { createServerClient } from '@/lib/db/supabase'
 import AdminWaitlist from '@/components/admin/admin-waitlist'
 
 export const metadata = {
@@ -8,7 +10,13 @@ export const metadata = {
 export const revalidate = 0
 
 export default async function AdminPage() {
-  const { data, error } = await supabase
+  const { userId } = await auth()
+  if (!userId) {
+    redirect('/sign-in')
+  }
+
+  const supabaseAdmin = createServerClient()
+  const { data, error } = await supabaseAdmin
     .from('waitlist')
     .select('*')
     .order('created_at', { ascending: false })
@@ -27,7 +35,7 @@ export default async function AdminPage() {
         {/* Error state */}
         {error && (
           <div className="bg-red-900/30 border border-red-700 rounded-xl p-4 text-red-400 text-sm mb-6" role="alert">
-            Error loading data: {error.message}
+            Error loading data. Please try again later.
           </div>
         )}
 
