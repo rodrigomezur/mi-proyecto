@@ -103,3 +103,19 @@ export type OrgSettings = {
 export type CreativeWithAnalysis = Creative & {
   creative_analysis: CreativeAnalysis | null
 }
+
+export type Profile = {
+  id: string
+  clerk_id: string
+  email: string | null
+  full_name: string | null
+  created_at: string
+}
+
+export type Project = {
+  id: string
+  user_id: string
+  name: string
+  description: string | null
+  created_at: string
+}

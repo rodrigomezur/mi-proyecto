@@ -5,6 +5,8 @@ import type {
   CreativeWithAnalysis,
   CreativeAnalysis,
   OrgSettings,
+  Profile,
+  Project,
 } from './types'
 
 // All query helpers use the service role client (bypasses RLS)
@@ -169,4 +171,73 @@ export async function upsertOrgSettings(
 
   if (error) throw error
   return data
+}
+
+// ── Profiles ──────────────────────────────────────────────────
+
+export async function getProfileByClerkId(clerkId: string): Promise<Profile | null> {
+  const { data, error } = await db()
+    .from('profiles')
+    .select('*')
+    .eq('clerk_id', clerkId)
+    .single()
+
+  if (error) {
+    if (error.code === 'PGRST116') return null
+    throw error
+  }
+  return data
+}
+
+export async function upsertProfile(profile: {
+  clerk_id: string
+  email: string | null
+  full_name: string | null
+}): Promise<Profile> {
+  const { data, error } = await db()
+    .from('profiles')
+    .upsert(profile, { onConflict: 'clerk_id' })
+    .select()
+    .single()
+
+  if (error) throw error
+  return data
+}
+
+// ── Projects ──────────────────────────────────────────────────
+
+export async function getProjectsByUserId(userId: string): Promise<Project[]> {
+  const { data, error } = await db()
+    .from('projects')
+    .select('*')
+    .eq('user_id', userId)
+    .order('created_at', { ascending: false })
+
+  if (error) throw error
+  return data ?? []
+}
+
+export async function createProject(project: {
+  user_id: string
+  name: string
+  description?: string
+}): Promise<Project> {
+  const { data, error } = await db()
+    .from('projects')
+    .insert(project)
+    .select()
+    .single()
+
+  if (error) throw error
+  return data
+}
+
+export async function deleteProject(projectId: string, userId: string): Promise<void> {
+  const { error } = await db()
+    .from('projects')
+    .delete()
+    .eq('id', projectId)
+    .eq('user_id', userId)
+
+  if (error) throw error
 }
