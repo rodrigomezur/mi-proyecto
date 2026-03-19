@@ -1,6 +1,5 @@
 import './css/style.css'
 
-import { ClerkProvider } from '@clerk/nextjs'
 import { Inter, Geist } from 'next/font/google'
 import { Syne, DM_Sans, DM_Mono } from 'next/font/google'
 import localFont from 'next/font/local'
@@ -75,21 +74,19 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <ClerkProvider>
-      <html lang="en" data-theme="night" suppressHydrationWarning className={cn("font-sans", geist.variable)}>
-        <head>
-          <script
-            dangerouslySetInnerHTML={{
-              __html: `(function(){try{var t=localStorage.getItem('theme');if(t==='day'||t==='night'){document.documentElement.setAttribute('data-theme',t)}}catch(e){}})();`,
-            }}
-          />
-        </head>
-        <body className={`${inter.variable} ${hkgrotesk.variable} ${bebasNeue.variable} ${syne.variable} ${dmSans.variable} ${dmMono.variable} font-inter antialiased bg-slate-900 text-slate-200 tracking-tight`}>
-          <div className="flex flex-col min-h-screen overflow-hidden">
-            {children}
-          </div>
-        </body>
-      </html>
-    </ClerkProvider>
+    <html lang="en" data-theme="night" suppressHydrationWarning className={cn("font-sans", geist.variable)}>
+      <head>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){try{var t=localStorage.getItem('theme');if(t==='day'||t==='night'){document.documentElement.setAttribute('data-theme',t)}}catch(e){}})();`,
+          }}
+        />
+      </head>
+      <body className={`${inter.variable} ${hkgrotesk.variable} ${bebasNeue.variable} ${syne.variable} ${dmSans.variable} ${dmMono.variable} font-inter antialiased bg-slate-900 text-slate-200 tracking-tight`}>
+        <div className="flex flex-col min-h-screen overflow-hidden">
+          {children}
+        </div>
+      </body>
+    </html>
   )
 }

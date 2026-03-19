@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { UserButton } from '@clerk/nextjs'
+import LogoutButton from '@/components/auth/logout-button'
 import ThemeToggle from '@/components/ui/theme-toggle'
 
 const navItems = [
@@ -263,14 +263,8 @@ export default function DashboardLayout({
             gap: '10px',
           }}
         >
-          <UserButton
-            appearance={{
-              elements: {
-                avatarBox: { width: '26px', height: '26px' },
-              },
-            }}
-          />
-          <span style={{ fontSize: '12px', color: 'var(--dash-text-dim)', flex: 1 }}>Account</span>
+          <LogoutButton />
+          <span style={{ fontSize: '12px', color: 'var(--dash-text-dim)', flex: 1 }}></span>
           <ThemeToggle />
         </div>
       </nav>

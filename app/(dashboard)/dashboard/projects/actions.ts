@@ -1,6 +1,6 @@
 'use server'
 
-import { auth, currentUser } from '@clerk/nextjs/server'
+import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
 import {
   getProfileByClerkId,
@@ -11,16 +11,16 @@ import {
 } from '@/lib/db/queries'
 
 async function getOrCreateProfile() {
-  const { userId } = await auth()
-  if (!userId) throw new Error('Not authenticated')
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) throw new Error('Not authenticated')
 
-  let profile = await getProfileByClerkId(userId)
+  let profile = await getProfileByClerkId(user.id)
   if (!profile) {
-    const user = await currentUser()
     profile = await upsertProfile({
-      clerk_id: userId,
-      email: user?.emailAddresses[0]?.emailAddress ?? null,
-      full_name: [user?.firstName, user?.lastName].filter(Boolean).join(' ') || null,
+      clerk_id: user.id,
+      email: user.email ?? null,
+      full_name: user.user_metadata?.full_name ?? null,
     })
   }
   return profile

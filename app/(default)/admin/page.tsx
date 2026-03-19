@@ -1,5 +1,5 @@
-import { auth } from '@clerk/nextjs/server'
 import { redirect } from 'next/navigation'
+import { createClient } from '@/lib/supabase/server'
 import { createServerClient } from '@/lib/db/supabase'
 import AdminWaitlist from '@/components/admin/admin-waitlist'
 
@@ -10,9 +10,11 @@ export const metadata = {
 export const revalidate = 0
 
 export default async function AdminPage() {
-  const { userId } = await auth()
-  if (!userId) {
-    redirect('/sign-in')
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+
+  if (!user) {
+    redirect('/login')
   }
 
   const supabaseAdmin = createServerClient()
