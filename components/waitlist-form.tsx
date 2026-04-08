@@ -1,6 +1,8 @@
 'use client'
 
 import { useState } from 'react'
+import { Input } from '@/components/ui/input'
+import { Button } from '@/components/ui/button'
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
@@ -61,7 +63,7 @@ export default function WaitlistForm() {
       <form onSubmit={handleSubmit} className="flex flex-col sm:flex-row gap-3 w-full">
         <div className="flex-1">
           <label htmlFor="waitlist-email" className="sr-only">Email address</label>
-          <input
+          <Input
             id="waitlist-email"
             type="email"
             value={email}
@@ -71,16 +73,16 @@ export default function WaitlistForm() {
             maxLength={254}
             autoComplete="email"
             disabled={status === 'loading'}
-            className="w-full px-4 py-3 rounded-lg bg-slate-800 border border-slate-700 text-[var(--color-text-primary)] placeholder-[var(--color-text-muted)] focus:outline-none focus:border-[var(--color-accent)] focus:ring-1 focus:ring-[var(--color-accent)] transition-colors text-sm disabled:opacity-50"
+            className="bg-slate-800 border-slate-700 text-[var(--color-text-primary)] placeholder:text-[var(--color-text-muted)] focus:border-[var(--color-accent)] focus:ring-[var(--color-accent)] h-12"
           />
         </div>
-        <button
+        <Button
           type="submit"
           disabled={status === 'loading'}
-          className="px-6 py-3 rounded-lg bg-[var(--color-accent)] hover:bg-[var(--color-accent-hover)] text-slate-900 font-semibold text-sm transition-colors whitespace-nowrap shadow-sm cursor-pointer disabled:opacity-70"
+          className="bg-[var(--color-accent)] hover:bg-[var(--color-accent-hover)] text-slate-900 font-semibold cursor-pointer disabled:opacity-70 h-12 px-6"
         >
           {status === 'loading' ? 'Joining...' : 'Get early access'}
-        </button>
+        </Button>
       </form>
       {status === 'error' && (
         <p className="text-red-400 text-xs mt-2 text-center" role="alert">{errorMsg}</p>
