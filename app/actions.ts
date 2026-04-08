@@ -188,8 +188,10 @@ export async function addProject(formData: FormData) {
 }
 
 export async function removeProject(projectId: string) {
-  if (!projectId || typeof projectId !== 'string') {
-    return { error: 'Invalid project ID.' }
+  const idSchema = z.string().uuid('Invalid project ID.')
+  const parsed = idSchema.safeParse(projectId)
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0].message }
   }
 
   const profile = await getOrCreateProfile()
