@@ -13,7 +13,23 @@ import GoogleButton from '@/components/auth/google-button'
 function RegisterForm() {
   const searchParams = useSearchParams()
   const error = searchParams.get('error')
+  const success = searchParams.get('success')
   const [pending, setPending] = useState(false)
+
+  if (success) {
+    return (
+      <Card className="bg-slate-800 border-slate-700">
+        <CardContent className="pt-8 text-center">
+          <div className="text-4xl mb-4">&#9993;</div>
+          <h2 className="text-xl font-bold text-white mb-2">Check your email</h2>
+          <p className="text-slate-400 text-sm mb-4">{success}</p>
+          <Link href="/login" className="text-[var(--color-accent)] hover:underline text-sm">
+            Back to login
+          </Link>
+        </CardContent>
+      </Card>
+    )
+  }
 
   return (
     <Card className="bg-slate-800 border-slate-700">

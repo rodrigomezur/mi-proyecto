@@ -50,6 +50,11 @@ export async function register(formData: FormData) {
     redirect(`/register?error=${encodeURIComponent(error.message)}`)
   }
 
+  // If email confirmation is required, user won't have a session yet
+  if (data.user && !data.session) {
+    redirect('/register?success=Check your email to confirm your account')
+  }
+
   // Create profile in our profiles table
   if (data.user) {
     const admin = createAdminClient()
