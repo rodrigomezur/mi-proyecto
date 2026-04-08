@@ -53,6 +53,7 @@ const hkgrotesk = localFont({
 // Keep Bebas Neue for landing page branding
 import { Bebas_Neue } from 'next/font/google'
 import { cn } from "@/lib/utils";
+import { Toaster } from "@/components/ui/sonner";
 
 const geist = Geist({subsets:['latin'],variable:'--font-sans'});
 
@@ -86,6 +87,7 @@ export default function RootLayout({
         <div className="flex flex-col min-h-screen overflow-hidden">
           {children}
         </div>
+        <Toaster />
       </body>
     </html>
   )

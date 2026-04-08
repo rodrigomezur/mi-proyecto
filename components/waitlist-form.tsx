@@ -1,15 +1,15 @@
 'use client'
 
 import { useState } from 'react'
+import { toast } from 'sonner'
 import { Input } from '@/components/ui/input'
 import SubmitButton from '@/components/ui/submit-button'
 import { joinWaitlist } from '@/app/actions'
 
 export default function WaitlistForm() {
-  const [status, setStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle')
-  const [errorMsg, setErrorMsg] = useState('')
+  const [success, setSuccess] = useState(false)
 
-  if (status === 'success') {
+  if (success) {
     return (
       <div className="flex items-center justify-center gap-2 text-[var(--color-accent)] font-medium py-3">
         <svg className="w-5 h-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
@@ -24,14 +24,12 @@ export default function WaitlistForm() {
     <div>
       <form
         action={async (formData) => {
-          setStatus('loading')
-          setErrorMsg('')
           const result = await joinWaitlist(formData)
           if (result.error) {
-            setErrorMsg(result.error)
-            setStatus('error')
+            toast.error(result.error)
           } else {
-            setStatus('success')
+            toast.success("You're on the list! We'll be in touch.")
+            setSuccess(true)
           }
         }}
         className="flex flex-col sm:flex-row gap-3 w-full"
@@ -46,7 +44,6 @@ export default function WaitlistForm() {
             required
             maxLength={254}
             autoComplete="email"
-            disabled={status === 'loading'}
             className="bg-slate-800 border-slate-700 text-[var(--color-text-primary)] placeholder:text-[var(--color-text-muted)] focus:border-[var(--color-accent)] focus:ring-[var(--color-accent)] h-12"
           />
         </div>
@@ -56,9 +53,6 @@ export default function WaitlistForm() {
           className="bg-[var(--color-accent)] hover:bg-[var(--color-accent-hover)] text-slate-900 font-semibold h-12 px-6"
         />
       </form>
-      {status === 'error' && (
-        <p className="text-red-400 text-xs mt-2 text-center" role="alert">{errorMsg}</p>
-      )}
     </div>
   )
 }

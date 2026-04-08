@@ -2,6 +2,7 @@
 
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
+import { toast } from 'sonner'
 
 export default function LogoutButton() {
   const router = useRouter()
@@ -9,6 +10,7 @@ export default function LogoutButton() {
   async function handleLogout() {
     const supabase = createClient()
     await supabase.auth.signOut()
+    toast.info('Logged out successfully.')
     router.push('/login')
     router.refresh()
   }

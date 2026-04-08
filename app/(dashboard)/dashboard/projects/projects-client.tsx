@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useTransition } from 'react'
+import { toast } from 'sonner'
 import { addProject, removeProject } from '@/app/actions'
 import SubmitButton from '@/components/ui/submit-button'
 import type { Project } from '@/lib/db/types'
@@ -20,7 +21,12 @@ export default function ProjectsClient({ initialProjects }: { initialProjects: P
   function handleDelete(projectId: string) {
     if (!confirm('Are you sure you want to delete this project?')) return
     startTransition(async () => {
-      await removeProject(projectId)
+      const result = await removeProject(projectId)
+      if (result.error) {
+        toast.error(result.error)
+      } else {
+        toast.success('Project deleted.')
+      }
     })
   }
 
@@ -70,8 +76,13 @@ export default function ProjectsClient({ initialProjects }: { initialProjects: P
           <form
             action={async (formData) => {
               startTransition(async () => {
-                await addProject(formData)
-                setShowForm(false)
+                const result = await addProject(formData)
+                if (result.error) {
+                  toast.error(result.error)
+                } else {
+                  toast.success('Project created!')
+                  setShowForm(false)
+                }
               })
             }}
             style={{
