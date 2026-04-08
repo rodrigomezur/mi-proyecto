@@ -3,49 +3,11 @@
 import { useState } from 'react'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
-
-const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+import { joinWaitlist } from '@/app/actions'
 
 export default function WaitlistForm() {
-  const [email, setEmail] = useState('')
   const [status, setStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle')
   const [errorMsg, setErrorMsg] = useState('')
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-
-    const cleaned = email.trim().toLowerCase()
-    if (!cleaned || !EMAIL_REGEX.test(cleaned) || cleaned.length > 254) {
-      setErrorMsg('Please enter a valid email address.')
-      setStatus('error')
-      return
-    }
-
-    setStatus('loading')
-    setErrorMsg('')
-
-    try {
-      const res = await fetch('/api/waitlist', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: cleaned }),
-      })
-
-      const data = await res.json()
-
-      if (!res.ok) {
-        setErrorMsg(data.error || 'Something went wrong. Please try again.')
-        setStatus('error')
-        return
-      }
-
-      setStatus('success')
-      setEmail('')
-    } catch {
-      setErrorMsg('Something went wrong. Please try again.')
-      setStatus('error')
-    }
-  }
 
   if (status === 'success') {
     return (
@@ -60,14 +22,26 @@ export default function WaitlistForm() {
 
   return (
     <div>
-      <form onSubmit={handleSubmit} className="flex flex-col sm:flex-row gap-3 w-full">
+      <form
+        action={async (formData) => {
+          setStatus('loading')
+          setErrorMsg('')
+          const result = await joinWaitlist(formData)
+          if (result.error) {
+            setErrorMsg(result.error)
+            setStatus('error')
+          } else {
+            setStatus('success')
+          }
+        }}
+        className="flex flex-col sm:flex-row gap-3 w-full"
+      >
         <div className="flex-1">
           <label htmlFor="waitlist-email" className="sr-only">Email address</label>
           <Input
             id="waitlist-email"
+            name="email"
             type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
             placeholder="you@company.com"
             required
             maxLength={254}

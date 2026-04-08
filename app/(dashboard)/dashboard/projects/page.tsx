@@ -1,4 +1,4 @@
-import { getMyProjects } from './actions'
+import { getMyProjects } from '@/app/actions'
 import ProjectsClient from './projects-client'
 
 export const metadata = { title: 'Projects — Creatiq' }

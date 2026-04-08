@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useTransition } from 'react'
-import { addProject, removeProject } from './actions'
+import { addProject, removeProject } from '@/app/actions'
 import type { Project } from '@/lib/db/types'
 
 function formatDate(iso: string) {
