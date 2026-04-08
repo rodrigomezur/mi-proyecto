@@ -1,20 +1,19 @@
 'use client'
 
-import { Suspense, useState } from 'react'
+import { Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { register } from '@/app/actions'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Button } from '@/components/ui/button'
+import SubmitButton from '@/components/ui/submit-button'
 import GoogleButton from '@/components/auth/google-button'
 
 function RegisterForm() {
   const searchParams = useSearchParams()
   const error = searchParams.get('error')
   const success = searchParams.get('success')
-  const [pending, setPending] = useState(false)
 
   if (success) {
     return (
@@ -44,14 +43,7 @@ function RegisterForm() {
           </div>
         )}
 
-        <form
-          action={async (formData) => {
-            setPending(true)
-            await register(formData)
-            setPending(false)
-          }}
-          className="space-y-4"
-        >
+        <form action={register} className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="full_name" className="text-slate-300">Full name</Label>
             <Input
@@ -91,13 +83,11 @@ function RegisterForm() {
             />
           </div>
 
-          <Button
-            type="submit"
-            disabled={pending}
-            className="w-full bg-[var(--color-accent)] hover:bg-[var(--color-accent-hover)] text-slate-900 font-semibold cursor-pointer disabled:opacity-70"
-          >
-            {pending ? 'Creating account...' : 'Create account'}
-          </Button>
+          <SubmitButton
+            label="Create account"
+            pendingLabel="Creating account..."
+            className="w-full bg-[var(--color-accent)] hover:bg-[var(--color-accent-hover)] text-slate-900 font-semibold"
+          />
         </form>
 
         <div className="relative my-6">

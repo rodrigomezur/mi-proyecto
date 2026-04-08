@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from 'react'
 import { addProject, removeProject } from '@/app/actions'
+import SubmitButton from '@/components/ui/submit-button'
 import type { Project } from '@/lib/db/types'
 
 function formatDate(iso: string) {
@@ -149,23 +150,11 @@ export default function ProjectsClient({ initialProjects }: { initialProjects: P
                 }}
               />
             </div>
-            <button
-              type="submit"
-              disabled={isPending}
-              style={{
-                padding: '8px 20px',
-                fontSize: '12px',
-                fontWeight: 600,
-                borderRadius: '6px',
-                background: 'var(--acid)',
-                color: '#000',
-                border: 'none',
-                cursor: isPending ? 'not-allowed' : 'pointer',
-                opacity: isPending ? 0.6 : 1,
-              }}
-            >
-              {isPending ? 'Creating...' : 'Create Project'}
-            </button>
+            <SubmitButton
+              label="Create Project"
+              pendingLabel="Creating..."
+              className="bg-[var(--acid)] hover:bg-[var(--acid)] text-black font-semibold text-xs px-5 py-2"
+            />
           </form>
         )}
 

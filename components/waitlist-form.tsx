@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { Input } from '@/components/ui/input'
-import { Button } from '@/components/ui/button'
+import SubmitButton from '@/components/ui/submit-button'
 import { joinWaitlist } from '@/app/actions'
 
 export default function WaitlistForm() {
@@ -50,13 +50,11 @@ export default function WaitlistForm() {
             className="bg-slate-800 border-slate-700 text-[var(--color-text-primary)] placeholder:text-[var(--color-text-muted)] focus:border-[var(--color-accent)] focus:ring-[var(--color-accent)] h-12"
           />
         </div>
-        <Button
-          type="submit"
-          disabled={status === 'loading'}
-          className="bg-[var(--color-accent)] hover:bg-[var(--color-accent-hover)] text-slate-900 font-semibold cursor-pointer disabled:opacity-70 h-12 px-6"
-        >
-          {status === 'loading' ? 'Joining...' : 'Get early access'}
-        </Button>
+        <SubmitButton
+          label="Get early access"
+          pendingLabel="Joining..."
+          className="bg-[var(--color-accent)] hover:bg-[var(--color-accent-hover)] text-slate-900 font-semibold h-12 px-6"
+        />
       </form>
       {status === 'error' && (
         <p className="text-red-400 text-xs mt-2 text-center" role="alert">{errorMsg}</p>

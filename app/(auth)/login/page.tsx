@@ -1,19 +1,18 @@
 'use client'
 
-import { Suspense, useState } from 'react'
+import { Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { login } from '@/app/actions'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Button } from '@/components/ui/button'
+import SubmitButton from '@/components/ui/submit-button'
 import GoogleButton from '@/components/auth/google-button'
 
 function LoginForm() {
   const searchParams = useSearchParams()
   const error = searchParams.get('error')
-  const [pending, setPending] = useState(false)
 
   return (
     <Card className="bg-slate-800 border-slate-700">
@@ -28,14 +27,7 @@ function LoginForm() {
           </div>
         )}
 
-        <form
-          action={async (formData) => {
-            setPending(true)
-            await login(formData)
-            setPending(false)
-          }}
-          className="space-y-4"
-        >
+        <form action={login} className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="email" className="text-slate-300">Email</Label>
             <Input
@@ -63,13 +55,11 @@ function LoginForm() {
             />
           </div>
 
-          <Button
-            type="submit"
-            disabled={pending}
-            className="w-full bg-[var(--color-accent)] hover:bg-[var(--color-accent-hover)] text-slate-900 font-semibold cursor-pointer disabled:opacity-70"
-          >
-            {pending ? 'Signing in...' : 'Sign in'}
-          </Button>
+          <SubmitButton
+            label="Sign in"
+            pendingLabel="Signing in..."
+            className="w-full bg-[var(--color-accent)] hover:bg-[var(--color-accent-hover)] text-slate-900 font-semibold"
+          />
         </form>
 
         <div className="relative my-6">
