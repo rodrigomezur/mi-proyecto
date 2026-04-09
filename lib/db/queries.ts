@@ -7,6 +7,7 @@ import type {
   OrgSettings,
   Profile,
   Project,
+  UserAdAccount,
   UserSettings,
 } from './types'
 
@@ -271,4 +272,59 @@ export async function upsertUserSettings(
 
   if (error) throw error
   return data
+}
+
+// ── Ad Accounts (user-scoped) ─────────────────────────────────
+
+export async function getUserAdAccounts(userId: string): Promise<UserAdAccount[]> {
+  const { data, error } = await db()
+    .from('ad_accounts')
+    .select('*')
+    .eq('user_id', userId)
+    .order('created_at', { ascending: false })
+
+  if (error) throw error
+  return data ?? []
+}
+
+export async function addUserAdAccount(account: {
+  user_id: string
+  ad_account_id: string
+  account_name: string
+}): Promise<UserAdAccount> {
+  const formattedId = account.ad_account_id.startsWith('act_')
+    ? account.ad_account_id
+    : `act_${account.ad_account_id}`
+
+  const { data, error } = await db()
+    .from('ad_accounts')
+    .upsert(
+      { ...account, ad_account_id: formattedId, active: true },
+      { onConflict: 'user_id,ad_account_id' }
+    )
+    .select()
+    .single()
+
+  if (error) throw error
+  return data
+}
+
+export async function deleteUserAdAccount(accountId: string, userId: string): Promise<void> {
+  const { error } = await db()
+    .from('ad_accounts')
+    .delete()
+    .eq('id', accountId)
+    .eq('user_id', userId)
+
+  if (error) throw error
+}
+
+export async function toggleAdAccountActive(accountId: string, userId: string, active: boolean): Promise<void> {
+  const { error } = await db()
+    .from('ad_accounts')
+    .update({ active })
+    .eq('id', accountId)
+    .eq('user_id', userId)
+
+  if (error) throw error
 }

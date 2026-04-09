@@ -1,0 +1,249 @@
+'use client'
+
+import { useState, useTransition } from 'react'
+import { toast } from 'sonner'
+import { addAdAccount, removeAdAccount, toggleAccount } from '@/app/actions'
+import { Card, CardContent } from '@/components/ui/card'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import SubmitButton from '@/components/ui/submit-button'
+import type { UserAdAccount } from '@/lib/db/types'
+
+function formatDate(iso: string) {
+  return new Intl.DateTimeFormat('en-US', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  }).format(new Date(iso))
+}
+
+export default function AccountsClient({ initialAccounts }: { initialAccounts: UserAdAccount[] }) {
+  const [showForm, setShowForm] = useState(false)
+  const [isPending, startTransition] = useTransition()
+
+  function handleDelete(accountId: string) {
+    if (!confirm('Delete this account and all its data?')) return
+    startTransition(async () => {
+      const result = await removeAdAccount(accountId)
+      if (result.error) {
+        toast.error(result.error)
+      } else {
+        toast.success('Account removed.')
+      }
+    })
+  }
+
+  function handleToggle(accountId: string, currentActive: boolean) {
+    startTransition(async () => {
+      const result = await toggleAccount(accountId, !currentActive)
+      if (result.error) {
+        toast.error(result.error)
+      } else {
+        toast.success(currentActive ? 'Account paused.' : 'Account activated.')
+      }
+    })
+  }
+
+  return (
+    <>
+      {/* Header */}
+      <div
+        className="sticky top-0 z-40 shrink-0 flex items-center gap-4"
+        style={{
+          height: '56px',
+          borderBottom: '1px solid var(--dash-border)',
+          padding: '0 28px',
+          background: 'var(--dash-bg)',
+        }}
+      >
+        <h1
+          style={{
+            fontFamily: 'var(--font-syne), sans-serif',
+            fontSize: '16px',
+            fontWeight: 700,
+            color: 'var(--dash-text)',
+            flex: 1,
+          }}
+        >
+          Ad Accounts
+        </h1>
+        <Button
+          onClick={() => setShowForm(!showForm)}
+          className="bg-[var(--acid)] hover:bg-[var(--acid)] text-black font-semibold text-xs cursor-pointer"
+        >
+          {showForm ? 'Cancel' : '+ Add Account'}
+        </Button>
+      </div>
+
+      <div className="flex-1 dashboard-scroll" style={{ padding: '28px' }}>
+        {/* Add account form */}
+        {showForm && (
+          <Card className="bg-[var(--dash-bg2)] border-[var(--dash-border)] mb-6">
+            <CardContent className="pt-6">
+              <form
+                action={async (formData) => {
+                  startTransition(async () => {
+                    const result = await addAdAccount(formData)
+                    if (result.error) {
+                      toast.error(result.error)
+                    } else {
+                      toast.success('Account connected!')
+                      setShowForm(false)
+                    }
+                  })
+                }}
+                className="space-y-4"
+              >
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="ad_account_id" className="text-[var(--dash-text-dim)] text-xs uppercase tracking-wider">
+                      Account ID
+                    </Label>
+                    <Input
+                      id="ad_account_id"
+                      name="ad_account_id"
+                      type="text"
+                      required
+                      placeholder="act_123456789"
+                      className="bg-[var(--dash-bg)] border-[var(--dash-border)] text-[var(--dash-text)] placeholder:text-[var(--dash-text-muted)]"
+                    />
+                    <p className="text-xs text-[var(--dash-text-muted)]">
+                      Found in Ads Manager URL: act_XXXXXXXXXX
+                    </p>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="account_name" className="text-[var(--dash-text-dim)] text-xs uppercase tracking-wider">
+                      Account Name
+                    </Label>
+                    <Input
+                      id="account_name"
+                      name="account_name"
+                      type="text"
+                      required
+                      maxLength={100}
+                      placeholder="My Client - Brand"
+                      className="bg-[var(--dash-bg)] border-[var(--dash-border)] text-[var(--dash-text)] placeholder:text-[var(--dash-text-muted)]"
+                    />
+                  </div>
+                </div>
+                <SubmitButton
+                  label="Connect Account"
+                  pendingLabel="Connecting..."
+                  className="bg-[var(--acid)] hover:bg-[var(--acid)] text-black font-semibold text-xs"
+                />
+              </form>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Empty state */}
+        {initialAccounts.length === 0 && !showForm ? (
+          <div className="text-center" style={{ padding: '80px 20px' }}>
+            <div style={{ fontSize: '48px', marginBottom: '16px', opacity: 0.3 }}>&#9788;</div>
+            <h2
+              style={{
+                fontFamily: 'var(--font-syne), sans-serif',
+                fontSize: '20px',
+                fontWeight: 700,
+                color: 'var(--dash-text)',
+                marginBottom: '8px',
+              }}
+            >
+              No accounts connected
+            </h2>
+            <p style={{ fontSize: '13px', color: 'var(--dash-text-muted)', marginBottom: '20px' }}>
+              Connect your Meta ad accounts to start analyzing creatives.
+            </p>
+            <Button
+              onClick={() => setShowForm(true)}
+              className="bg-[var(--acid)] hover:bg-[var(--acid)] text-black font-semibold cursor-pointer"
+            >
+              + Add Account
+            </Button>
+          </div>
+        ) : (
+          <div style={{ display: 'grid', gap: '12px' }}>
+            {initialAccounts.map((account) => (
+              <Card key={account.id} className="bg-[var(--dash-bg2)] border-[var(--dash-border)]">
+                <CardContent className="pt-5 pb-5">
+                  <div className="flex items-center gap-4">
+                    {/* Icon */}
+                    <div
+                      style={{
+                        width: '40px',
+                        height: '40px',
+                        borderRadius: '8px',
+                        background: account.active
+                          ? 'linear-gradient(135deg, var(--dash-bg3), var(--dash-bg4))'
+                          : 'var(--dash-bg3)',
+                        border: `1px solid ${account.active ? 'var(--acid-dim)' : 'var(--dash-border)'}`,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        fontFamily: 'var(--font-dm-mono), monospace',
+                        fontSize: '10px',
+                        fontWeight: 700,
+                        color: account.active ? 'var(--acid)' : 'var(--dash-text-muted)',
+                        flexShrink: 0,
+                      }}
+                    >
+                      META
+                    </div>
+
+                    {/* Info */}
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div className="flex items-center gap-2">
+                        <span style={{ fontSize: '14px', fontWeight: 600, color: 'var(--dash-text)' }}>
+                          {account.account_name}
+                        </span>
+                        {account.active ? (
+                          <Badge className="bg-emerald-400/10 text-emerald-400 border-emerald-400/20 text-[10px]">Active</Badge>
+                        ) : (
+                          <Badge variant="outline" className="border-[var(--dash-border)] text-[var(--dash-text-muted)] text-[10px]">Paused</Badge>
+                        )}
+                      </div>
+                      <div style={{ fontFamily: 'var(--font-dm-mono), monospace', fontSize: '11px', color: 'var(--dash-text-muted)', marginTop: '2px' }}>
+                        {account.ad_account_id}
+                      </div>
+                      {account.last_synced && (
+                        <div style={{ fontSize: '11px', color: 'var(--dash-text-muted)', marginTop: '2px' }}>
+                          Last synced: {formatDate(account.last_synced)}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Actions */}
+                    <div className="flex items-center gap-2 shrink-0">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleToggle(account.id, account.active)}
+                        disabled={isPending}
+                        className="border-[var(--dash-border)] text-[var(--dash-text-muted)] hover:bg-[var(--dash-bg3)] text-xs cursor-pointer"
+                      >
+                        {account.active ? 'Pause' : 'Activate'}
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleDelete(account.id)}
+                        disabled={isPending}
+                        className="border-[var(--dash-border)] text-red-400 hover:bg-red-400/10 hover:border-red-400/30 text-xs cursor-pointer"
+                      >
+                        Delete
+                      </Button>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        )}
+      </div>
+    </>
+  )
+}

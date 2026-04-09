@@ -120,6 +120,16 @@ export type Project = {
   created_at: string
 }
 
+export type UserAdAccount = {
+  id: string
+  user_id: string
+  ad_account_id: string
+  account_name: string
+  active: boolean
+  last_synced: string | null
+  created_at: string
+}
+
 export type UserSettings = {
   id: string
   user_id: string

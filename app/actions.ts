@@ -13,6 +13,10 @@ import {
   deleteProject,
   getUserSettings,
   upsertUserSettings,
+  getUserAdAccounts,
+  addUserAdAccount,
+  deleteUserAdAccount,
+  toggleAdAccountActive,
 } from '@/lib/db/queries'
 
 // ── Schemas ───────────────────────────────────────────────────
@@ -295,4 +299,74 @@ export async function testGeminiConnection() {
   } catch {
     return { error: 'Failed to connect to Gemini API.' }
   }
+}
+
+// ── Ad Accounts ───────────────────────────────────────────────
+
+const adAccountSchema = z.object({
+  ad_account_id: z.string().trim().min(1, 'Account ID is required.'),
+  account_name: z.string().trim().min(1, 'Account name is required.').max(100),
+})
+
+export async function getMyAdAccounts() {
+  const profile = await getOrCreateProfile()
+  return getUserAdAccounts(profile.id)
+}
+
+export async function addAdAccount(formData: FormData) {
+  const parsed = adAccountSchema.safeParse({
+    ad_account_id: formData.get('ad_account_id'),
+    account_name: formData.get('account_name'),
+  })
+
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0].message }
+  }
+
+  const profile = await getOrCreateProfile()
+
+  try {
+    await addUserAdAccount({
+      user_id: profile.id,
+      ad_account_id: parsed.data.ad_account_id,
+      account_name: parsed.data.account_name,
+    })
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : 'Failed to add account.'
+    if (message.includes('duplicate') || message.includes('unique')) {
+      return { error: 'This account is already connected.' }
+    }
+    return { error: message }
+  }
+
+  revalidatePath('/dashboard/accounts')
+  return { success: true }
+}
+
+export async function removeAdAccount(accountId: string) {
+  const idSchema = z.string().uuid('Invalid account ID.')
+  const parsed = idSchema.safeParse(accountId)
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0].message }
+  }
+
+  const profile = await getOrCreateProfile()
+  await deleteUserAdAccount(accountId, profile.id)
+
+  revalidatePath('/dashboard/accounts')
+  return { success: true }
+}
+
+export async function toggleAccount(accountId: string, active: boolean) {
+  const idSchema = z.string().uuid('Invalid account ID.')
+  const parsed = idSchema.safeParse(accountId)
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0].message }
+  }
+
+  const profile = await getOrCreateProfile()
+  await toggleAdAccountActive(accountId, profile.id, active)
+
+  revalidatePath('/dashboard/accounts')
+  return { success: true }
 }

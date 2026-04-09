@@ -7,7 +7,7 @@ import ThemeToggle from '@/components/ui/theme-toggle'
 
 const navItems = [
   { label: 'Overview', href: '/dashboard/overview', icon: '\u25C8' },
-  { label: 'Projects', href: '/dashboard/projects', icon: '\u25A3' },
+  { label: 'Accounts', href: '/dashboard/accounts', icon: '\u2609' },
   { label: 'Creatives', href: '/dashboard/creatives', icon: '\u25A6' },
   { label: 'Analytics', href: '/dashboard/analytics', icon: '\u25D0' },
   { label: 'Reports', href: '/dashboard/reports', icon: '\u2261' },
