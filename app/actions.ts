@@ -11,6 +11,8 @@ import {
   getProjectsByUserId,
   createProject,
   deleteProject,
+  getUserSettings,
+  upsertUserSettings,
 } from '@/lib/db/queries'
 
 // ── Schemas ───────────────────────────────────────────────────
@@ -199,4 +201,98 @@ export async function removeProject(projectId: string) {
 
   revalidatePath('/dashboard/projects')
   return { success: true }
+}
+
+// ── Settings ──────────────────────────────────────────────────
+
+const settingsSchema = z.object({
+  meta_access_token: z.string().trim().optional(),
+  gemini_api_key: z.string().trim().optional(),
+  roas_winner_threshold: z.coerce.number().min(0, 'Must be 0 or greater.').default(1.0),
+  min_spend_threshold: z.coerce.number().min(0, 'Must be 0 or greater.').default(0),
+  sync_frequency: z.enum(['manual', 'daily', 'weekly']).default('manual'),
+  date_range_days: z.coerce.number().int().min(1).max(365).default(30),
+})
+
+export async function getMySettings() {
+  const profile = await getOrCreateProfile()
+  return getUserSettings(profile.id)
+}
+
+export async function saveSettings(formData: FormData) {
+  const parsed = settingsSchema.safeParse({
+    meta_access_token: formData.get('meta_access_token') || undefined,
+    gemini_api_key: formData.get('gemini_api_key') || undefined,
+    roas_winner_threshold: formData.get('roas_winner_threshold'),
+    min_spend_threshold: formData.get('min_spend_threshold'),
+    sync_frequency: formData.get('sync_frequency'),
+    date_range_days: formData.get('date_range_days'),
+  })
+
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0].message }
+  }
+
+  const profile = await getOrCreateProfile()
+
+  const current = await getUserSettings(profile.id)
+  const metaTokenChanged = parsed.data.meta_access_token && parsed.data.meta_access_token !== current?.meta_access_token
+
+  await upsertUserSettings(profile.id, {
+    ...parsed.data,
+    meta_access_token: parsed.data.meta_access_token || current?.meta_access_token || null,
+    gemini_api_key: parsed.data.gemini_api_key || current?.gemini_api_key || null,
+    ...(metaTokenChanged ? { meta_token_created_at: new Date().toISOString() } : {}),
+  })
+
+  revalidatePath('/dashboard/settings')
+  return { success: true }
+}
+
+export async function testMetaConnection() {
+  const profile = await getOrCreateProfile()
+  const settings = await getUserSettings(profile.id)
+
+  if (!settings?.meta_access_token) {
+    return { error: 'No Meta access token configured.' }
+  }
+
+  try {
+    const res = await fetch(
+      `https://graph.facebook.com/v21.0/me?access_token=${settings.meta_access_token}`
+    )
+    const data = await res.json()
+
+    if (data.error) {
+      return { error: `Meta API error: ${data.error.message}` }
+    }
+
+    return { success: true, name: data.name || data.id }
+  } catch {
+    return { error: 'Failed to connect to Meta API.' }
+  }
+}
+
+export async function testGeminiConnection() {
+  const profile = await getOrCreateProfile()
+  const settings = await getUserSettings(profile.id)
+
+  if (!settings?.gemini_api_key) {
+    return { error: 'No Gemini API key configured.' }
+  }
+
+  try {
+    const res = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models?key=${settings.gemini_api_key}`
+    )
+    const data = await res.json()
+
+    if (data.error) {
+      return { error: `Gemini API error: ${data.error.message}` }
+    }
+
+    return { success: true }
+  } catch {
+    return { error: 'Failed to connect to Gemini API.' }
+  }
 }

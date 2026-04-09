@@ -119,3 +119,17 @@ export type Project = {
   description: string | null
   created_at: string
 }
+
+export type UserSettings = {
+  id: string
+  user_id: string
+  meta_access_token: string | null
+  meta_token_created_at: string | null
+  gemini_api_key: string | null
+  roas_winner_threshold: number
+  min_spend_threshold: number
+  sync_frequency: string
+  date_range_days: number
+  created_at: string
+  updated_at: string
+}

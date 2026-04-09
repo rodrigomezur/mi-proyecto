@@ -7,6 +7,7 @@ import type {
   OrgSettings,
   Profile,
   Project,
+  UserSettings,
 } from './types'
 
 // All query helpers use the service role client (bypasses RLS)
@@ -240,4 +241,34 @@ export async function deleteProject(projectId: string, userId: string): Promise<
     .eq('user_id', userId)
 
   if (error) throw error
+}
+
+// ── User Settings ─────────────────────────────────────────────
+
+export async function getUserSettings(userId: string): Promise<UserSettings | null> {
+  const { data, error } = await db()
+    .from('user_settings')
+    .select('*')
+    .eq('user_id', userId)
+    .single()
+
+  if (error) {
+    if (error.code === 'PGRST116') return null
+    throw error
+  }
+  return data
+}
+
+export async function upsertUserSettings(
+  userId: string,
+  settings: Partial<Omit<UserSettings, 'id' | 'user_id' | 'created_at' | 'updated_at'>>
+): Promise<UserSettings> {
+  const { data, error } = await db()
+    .from('user_settings')
+    .upsert({ ...settings, user_id: userId, updated_at: new Date().toISOString() }, { onConflict: 'user_id' })
+    .select()
+    .single()
+
+  if (error) throw error
+  return data
 }
