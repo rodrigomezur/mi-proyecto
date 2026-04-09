@@ -274,17 +274,18 @@ export async function saveSettings(formData: FormData) {
   return { success: true }
 }
 
-export async function testMetaConnection() {
+export async function testMetaConnection(tokenFromForm?: string) {
   const profile = await getOrCreateProfile()
   const settings = await getUserSettings(profile.id)
+  const token = tokenFromForm?.trim() || settings?.meta_access_token
 
-  if (!settings?.meta_access_token) {
-    return { error: 'No Meta access token configured.' }
+  if (!token) {
+    return { error: 'Enter your Meta access token and try again.' }
   }
 
   try {
     const res = await fetch(
-      `https://graph.facebook.com/v21.0/me?access_token=${settings.meta_access_token}`
+      `https://graph.facebook.com/v21.0/me?access_token=${token}`
     )
     const data = await res.json()
 
@@ -298,17 +299,18 @@ export async function testMetaConnection() {
   }
 }
 
-export async function testGeminiConnection() {
+export async function testGeminiConnection(keyFromForm?: string) {
   const profile = await getOrCreateProfile()
   const settings = await getUserSettings(profile.id)
+  const key = keyFromForm?.trim() || settings?.gemini_api_key
 
-  if (!settings?.gemini_api_key) {
-    return { error: 'No Gemini API key configured.' }
+  if (!key) {
+    return { error: 'Enter your Gemini API key and try again.' }
   }
 
   try {
     const res = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models?key=${settings.gemini_api_key}`
+      `https://generativelanguage.googleapis.com/v1beta/models?key=${key}`
     )
     const data = await res.json()
 

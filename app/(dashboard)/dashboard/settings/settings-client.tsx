@@ -32,7 +32,8 @@ export default function SettingsClient({ settings, subscription }: { settings: U
 
   async function handleTestMeta() {
     setTestingMeta(true)
-    const result = await testMetaConnection()
+    const input = document.getElementById('meta_access_token') as HTMLInputElement
+    const result = await testMetaConnection(input?.value || undefined)
     if (result.error) {
       toast.error(result.error)
     } else {
@@ -43,7 +44,8 @@ export default function SettingsClient({ settings, subscription }: { settings: U
 
   async function handleTestGemini() {
     setTestingGemini(true)
-    const result = await testGeminiConnection()
+    const input = document.getElementById('gemini_api_key') as HTMLInputElement
+    const result = await testGeminiConnection(input?.value || undefined)
     if (result.error) {
       toast.error(result.error)
     } else {
