@@ -72,3 +72,32 @@ export async function getMySubscription() {
 
   return data
 }
+
+export async function createBillingPortalSession() {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+
+  if (!user) {
+    redirect('/login')
+  }
+
+  const admin = createAdminClient()
+  const { data: subscription } = await admin
+    .from('subscriptions')
+    .select('stripe_customer_id')
+    .eq('user_id', user.id)
+    .single()
+
+  if (!subscription?.stripe_customer_id) {
+    return { error: 'No active subscription found.' }
+  }
+
+  const session = await stripe.billingPortal.sessions.create({
+    customer: subscription.stripe_customer_id,
+    return_url: `${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'}/dashboard/settings`,
+  })
+
+  if (session.url) {
+    redirect(session.url)
+  }
+}

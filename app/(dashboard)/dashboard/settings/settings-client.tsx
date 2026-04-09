@@ -3,17 +3,32 @@
 import { useState, useTransition } from 'react'
 import { toast } from 'sonner'
 import { saveSettings, testMetaConnection, testGeminiConnection } from '@/app/actions'
+import { createBillingPortalSession } from '@/app/actions/stripe'
 import { Card, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import SubmitButton from '@/components/ui/submit-button'
 import type { UserSettings } from '@/lib/db/types'
 
-export default function SettingsClient({ settings }: { settings: UserSettings | null }) {
+type Subscription = {
+  plan: string
+  status: string
+  current_period_end: string | null
+} | null
+
+export default function SettingsClient({ settings, subscription }: { settings: UserSettings | null; subscription: Subscription }) {
   const [testingMeta, setTestingMeta] = useState(false)
   const [testingGemini, setTestingGemini] = useState(false)
   const [isPending, startTransition] = useTransition()
+
+  async function handleManageBilling() {
+    const result = await createBillingPortalSession()
+    if (result?.error) {
+      toast.error(result.error)
+    }
+  }
 
   async function handleTestMeta() {
     setTestingMeta(true)
@@ -63,6 +78,55 @@ export default function SettingsClient({ settings }: { settings: UserSettings | 
       </div>
 
       <div className="flex-1 dashboard-scroll" style={{ padding: '28px', maxWidth: '640px' }}>
+        {/* Subscription */}
+        <Card className="bg-[var(--dash-bg2)] border-[var(--dash-border)] mb-6">
+          <CardContent className="pt-6">
+            <h2 style={{ fontFamily: 'var(--font-syne), sans-serif', fontSize: '14px', fontWeight: 700, color: 'var(--dash-text)' }}>
+              Subscription
+            </h2>
+            {subscription ? (
+              <div className="mt-3 flex items-center justify-between">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-medium text-[var(--dash-text)] capitalize">{subscription.plan}</span>
+                    <Badge className={subscription.status === 'active'
+                      ? 'bg-emerald-400/10 text-emerald-400 border-emerald-400/20 text-[10px]'
+                      : 'bg-red-400/10 text-red-400 border-red-400/20 text-[10px]'
+                    }>
+                      {subscription.status}
+                    </Badge>
+                  </div>
+                  {subscription.current_period_end && (
+                    <p className="text-xs text-[var(--dash-text-muted)] mt-1">
+                      Renews {new Date(subscription.current_period_end).toLocaleDateString()}
+                    </p>
+                  )}
+                </div>
+                <Button
+                  onClick={handleManageBilling}
+                  variant="outline"
+                  className="border-[var(--dash-border)] text-[var(--dash-text-dim)] hover:bg-[var(--dash-bg3)] cursor-pointer text-xs"
+                >
+                  Manage Billing
+                </Button>
+              </div>
+            ) : (
+              <div className="mt-3 flex items-center justify-between">
+                <div>
+                  <span className="text-sm text-[var(--dash-text-muted)]">No active plan</span>
+                </div>
+                <Button
+                  onClick={() => window.location.href = '/pricing'}
+                  variant="outline"
+                  className="border-[var(--acid-dim)] text-[var(--acid)] hover:bg-[var(--acid)]/10 cursor-pointer text-xs"
+                >
+                  View Plans
+                </Button>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
         <form
           action={async (formData) => {
             startTransition(async () => {
