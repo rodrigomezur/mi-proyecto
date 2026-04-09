@@ -150,7 +150,7 @@ export default function AnalyticsClient({ analytics }: { analytics: Analytics })
         ) : (
           <>
             {/* Overview stats */}
-            <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-8">
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 mb-8">
               <Card className="bg-[var(--dash-bg2)] border-[var(--dash-border)]">
                 <CardContent className="pt-4 pb-4">
                   <p className="text-[10px] text-[var(--dash-text-muted)] uppercase tracking-wider mb-1">Win Rate</p>

@@ -131,7 +131,7 @@ export default function ReportsClient({
                   </div>
 
                   {/* Stats row */}
-                  <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-4">
+                  <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 mb-4">
                     <div>
                       <p className="text-[10px] text-[var(--dash-text-muted)] uppercase">Spend</p>
                       <p className="text-lg font-bold text-[var(--acid)]">{formatCurrency(report.total_spend)}</p>

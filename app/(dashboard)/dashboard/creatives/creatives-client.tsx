@@ -141,7 +141,7 @@ export default function CreativesClient({
         ) : (
           <>
             {/* Stats row */}
-            <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-6">
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 mb-6">
               <Card className="bg-[var(--dash-bg2)] border-[var(--dash-border)]">
                 <CardContent className="pt-4 pb-4">
                   <p className="text-[10px] text-[var(--dash-text-muted)] uppercase tracking-wider mb-1">Total Spend</p>
@@ -175,7 +175,7 @@ export default function CreativesClient({
             </div>
 
             {/* Filters */}
-            <div className="flex flex-wrap gap-3 mb-6">
+            <div className="flex flex-wrap gap-2 mb-6">
               <Input
                 type="text"
                 placeholder="Search ads..."
@@ -233,7 +233,7 @@ export default function CreativesClient({
             {/* Creatives grid */}
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
               {filtered.map(creative => (
-                <Card key={creative.id} className="bg-[var(--dash-bg2)] border-[var(--dash-border)] overflow-hidden">
+                <Card key={creative.id} className="bg-[var(--dash-bg2)] border-[var(--dash-border)] overflow-hidden transition-all duration-200 hover:border-[var(--dash-border-bright)] hover:shadow-lg hover:shadow-black/20">
                   {/* Thumbnail */}
                   {creative.image_url && (
                     <div className="h-40 bg-[var(--dash-bg3)] overflow-hidden">

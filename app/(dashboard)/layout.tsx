@@ -1,276 +1,139 @@
 'use client'
 
+import { useState } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
+import { LayoutDashboard, Users, Palette, BarChart3, FileText, Settings, Menu } from 'lucide-react'
+import { Sheet, SheetContent } from '@/components/ui/sheet'
 import LogoutButton from '@/components/auth/logout-button'
 import ThemeToggle from '@/components/ui/theme-toggle'
 
 const navItems = [
-  { label: 'Overview', href: '/dashboard/overview', icon: '\u25C8' },
-  { label: 'Accounts', href: '/dashboard/accounts', icon: '\u2609' },
-  { label: 'Creatives', href: '/dashboard/creatives', icon: '\u25A6' },
-  { label: 'Analytics', href: '/dashboard/analytics', icon: '\u25D0' },
-  { label: 'Reports', href: '/dashboard/reports', icon: '\u2261' },
+  { label: 'Overview', href: '/dashboard/overview', icon: LayoutDashboard },
+  { label: 'Accounts', href: '/dashboard/accounts', icon: Users },
+  { label: 'Creatives', href: '/dashboard/creatives', icon: Palette },
+  { label: 'Analytics', href: '/dashboard/analytics', icon: BarChart3 },
+  { label: 'Reports', href: '/dashboard/reports', icon: FileText },
 ]
 
 const accountItems = [
-  { label: 'Settings', href: '/dashboard/settings', icon: '\u2299' },
+  { label: 'Settings', href: '/dashboard/settings', icon: Settings },
 ]
 
-export default function DashboardLayout({
-  children,
-}: {
-  children: React.ReactNode
-}) {
-  const pathname = usePathname()
-
+function SidebarContent({ pathname, onNavigate }: { pathname: string; onNavigate?: () => void }) {
   function isActive(href: string) {
     if (href === '/dashboard/overview') return pathname === '/dashboard' || pathname === '/dashboard/overview'
     return pathname.startsWith(href)
   }
 
   return (
-    <div
-      className="flex min-h-screen"
-      style={{
-        background: 'var(--dash-bg)',
-        color: 'var(--dash-text)',
-        fontFamily: 'var(--font-dm-sans), sans-serif',
-      }}
-    >
-      {/* Sidebar */}
-      <nav
-        className="fixed top-0 left-0 bottom-0 z-50 flex flex-col shrink-0"
-        style={{
-          width: 'var(--sidebar-w)',
-          background: 'var(--dash-bg2)',
-          borderRight: '1px solid var(--dash-border)',
-        }}
-      >
-        {/* Logo */}
-        <div style={{ padding: '24px 20px 20px', borderBottom: '1px solid var(--dash-border)' }}>
-          <span className="font-[family-name:var(--font-bebas-neue)] text-3xl tracking-widest text-[var(--acid)]">
-            CREATIQ
-          </span>
-          <div
-            style={{
-              fontFamily: 'var(--font-dm-mono), monospace',
-              fontSize: '9px',
-              color: 'var(--dash-text-muted)',
-              letterSpacing: '0.15em',
-              textTransform: 'uppercase' as const,
-              marginTop: '2px',
-            }}
-          >
-            Creative Analytics
-          </div>
+    <div className="flex flex-col h-full bg-[var(--dash-bg2)] text-[var(--dash-text)]">
+      {/* Logo */}
+      <div className="px-5 pt-6 pb-5 border-b border-[var(--dash-border)]">
+        <span className="font-[family-name:var(--font-bebas-neue)] text-3xl tracking-widest text-[var(--acid)]">
+          CREATIQ
+        </span>
+        <div className="font-[family-name:var(--font-dm-mono)] text-[9px] text-[var(--dash-text-muted)] tracking-[0.15em] uppercase mt-0.5">
+          Creative Analytics
         </div>
+      </div>
 
-        {/* Account pill */}
-        <div
-          style={{
-            padding: '14px 20px',
-            borderBottom: '1px solid var(--dash-border)',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '10px',
-          }}
-        >
-          <div
-            style={{
-              width: '28px',
-              height: '28px',
-              borderRadius: '6px',
-              background: 'linear-gradient(135deg, var(--dash-bg3), var(--dash-bg4))',
-              border: '1px solid var(--acid-dim)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontFamily: 'var(--font-syne), sans-serif',
-              fontSize: '11px',
-              fontWeight: 700,
-              color: 'var(--acid)',
-              flexShrink: 0,
-            }}
-          >
-            AC
-          </div>
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <div
-              style={{
-                fontSize: '12px',
-                fontWeight: 500,
-                color: 'var(--dash-text)',
-                whiteSpace: 'nowrap' as const,
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
-              }}
+      {/* Nav */}
+      <div className="flex-1 overflow-y-auto py-3">
+        <div className="font-[family-name:var(--font-dm-mono)] text-[9px] tracking-[0.15em] uppercase text-[var(--dash-text-muted)] px-5 pt-2 pb-1">
+          Analytics
+        </div>
+        {navItems.map((item) => {
+          const active = isActive(item.href)
+          const Icon = item.icon
+          return (
+            <Link
+              key={item.href}
+              href={item.href}
+              onClick={onNavigate}
+              className={`relative flex items-center gap-2.5 px-5 py-2.5 text-[13px] transition-all duration-200
+                ${active
+                  ? 'text-[var(--acid)] bg-[var(--acid)]/[0.06]'
+                  : 'text-[var(--dash-text-dim)] hover:text-[var(--dash-text)] hover:bg-[var(--dash-bg3)]'
+                }`}
             >
-              Acme Creative Co.
-            </div>
-            <div
-              style={{
-                fontFamily: 'var(--font-dm-mono), monospace',
-                fontSize: '9px',
-                color: 'var(--acid)',
-                textTransform: 'uppercase' as const,
-                letterSpacing: '0.1em',
-              }}
+              {active && (
+                <span className="absolute left-0 top-1 bottom-1 w-0.5 bg-[var(--acid)] rounded-r" />
+              )}
+              <Icon className="w-4 h-4 shrink-0" />
+              {item.label}
+            </Link>
+          )
+        })}
+
+        <div className="font-[family-name:var(--font-dm-mono)] text-[9px] tracking-[0.15em] uppercase text-[var(--dash-text-muted)] px-5 pt-4 pb-1">
+          Account
+        </div>
+        {accountItems.map((item) => {
+          const active = isActive(item.href)
+          const Icon = item.icon
+          return (
+            <Link
+              key={item.href}
+              href={item.href}
+              onClick={onNavigate}
+              className={`relative flex items-center gap-2.5 px-5 py-2.5 text-[13px] transition-all duration-200
+                ${active
+                  ? 'text-[var(--acid)] bg-[var(--acid)]/[0.06]'
+                  : 'text-[var(--dash-text-dim)] hover:text-[var(--dash-text)] hover:bg-[var(--dash-bg3)]'
+                }`}
             >
-              Growth Plan
-            </div>
-          </div>
-        </div>
+              {active && (
+                <span className="absolute left-0 top-1 bottom-1 w-0.5 bg-[var(--acid)] rounded-r" />
+              )}
+              <Icon className="w-4 h-4 shrink-0" />
+              {item.label}
+            </Link>
+          )
+        })}
+      </div>
 
-        {/* Nav */}
-        <div className="flex-1 overflow-y-auto dashboard-scroll" style={{ padding: '12px 0' }}>
-          <div
-            style={{
-              fontFamily: 'var(--font-dm-mono), monospace',
-              fontSize: '9px',
-              letterSpacing: '0.15em',
-              textTransform: 'uppercase' as const,
-              color: 'var(--dash-text-muted)',
-              padding: '8px 20px 4px',
-              marginTop: '8px',
-            }}
-          >
-            Analytics
-          </div>
-          {navItems.map((item) => {
-            const active = isActive(item.href)
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                className="block relative"
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '10px',
-                  padding: '9px 20px',
-                  fontSize: '13px',
-                  color: active ? 'var(--acid)' : 'var(--dash-text-dim)',
-                  fontWeight: 400,
-                  textDecoration: 'none',
-                  background: active ? 'rgba(200,255,0,0.06)' : 'transparent',
-                  transition: 'all 0.15s',
-                }}
-                onMouseEnter={(e) => {
-                  if (!active) {
-                    e.currentTarget.style.color = 'var(--dash-text)'
-                    e.currentTarget.style.background = 'var(--dash-bg3)'
-                  }
-                }}
-                onMouseLeave={(e) => {
-                  if (!active) {
-                    e.currentTarget.style.color = 'var(--dash-text-dim)'
-                    e.currentTarget.style.background = 'transparent'
-                  }
-                }}
-              >
-                {active && (
-                  <span
-                    style={{
-                      position: 'absolute',
-                      left: 0,
-                      top: '4px',
-                      bottom: '4px',
-                      width: '2px',
-                      background: 'var(--acid)',
-                      borderRadius: '0 2px 2px 0',
-                    }}
-                  />
-                )}
-                <span style={{ fontSize: '14px', width: '18px', textAlign: 'center' as const }}>{item.icon}</span>
-                {item.label}
-              </Link>
-            )
-          })}
+      {/* Footer */}
+      <div className="px-5 py-3.5 border-t border-[var(--dash-border)] flex items-center gap-2.5">
+        <LogoutButton />
+        <span className="flex-1" />
+        <ThemeToggle />
+      </div>
+    </div>
+  )
+}
 
-          <div
-            style={{
-              fontFamily: 'var(--font-dm-mono), monospace',
-              fontSize: '9px',
-              letterSpacing: '0.15em',
-              textTransform: 'uppercase' as const,
-              color: 'var(--dash-text-muted)',
-              padding: '8px 20px 4px',
-              marginTop: '8px',
-            }}
-          >
-            Account
-          </div>
-          {accountItems.map((item) => {
-            const active = isActive(item.href)
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                className="block relative"
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '10px',
-                  padding: '9px 20px',
-                  fontSize: '13px',
-                  color: active ? 'var(--acid)' : 'var(--dash-text-dim)',
-                  fontWeight: 400,
-                  textDecoration: 'none',
-                  background: active ? 'rgba(200,255,0,0.06)' : 'transparent',
-                  transition: 'all 0.15s',
-                }}
-                onMouseEnter={(e) => {
-                  if (!active) {
-                    e.currentTarget.style.color = 'var(--dash-text)'
-                    e.currentTarget.style.background = 'var(--dash-bg3)'
-                  }
-                }}
-                onMouseLeave={(e) => {
-                  if (!active) {
-                    e.currentTarget.style.color = 'var(--dash-text-dim)'
-                    e.currentTarget.style.background = 'transparent'
-                  }
-                }}
-              >
-                {active && (
-                  <span
-                    style={{
-                      position: 'absolute',
-                      left: 0,
-                      top: '4px',
-                      bottom: '4px',
-                      width: '2px',
-                      background: 'var(--acid)',
-                      borderRadius: '0 2px 2px 0',
-                    }}
-                  />
-                )}
-                <span style={{ fontSize: '14px', width: '18px', textAlign: 'center' as const }}>{item.icon}</span>
-                {item.label}
-              </Link>
-            )
-          })}
-        </div>
+export default function DashboardLayout({ children }: { children: React.ReactNode }) {
+  const pathname = usePathname()
+  const [mobileOpen, setMobileOpen] = useState(false)
 
-        {/* User / Clerk */}
-        <div
-          style={{
-            padding: '14px 20px',
-            borderTop: '1px solid var(--dash-border)',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '10px',
-          }}
-        >
-          <LogoutButton />
-          <span style={{ fontSize: '12px', color: 'var(--dash-text-dim)', flex: 1 }}></span>
-          <ThemeToggle />
-        </div>
+  return (
+    <div className="flex min-h-screen bg-[var(--dash-bg)] text-[var(--dash-text)] font-[family-name:var(--font-dm-sans)]">
+      {/* Desktop sidebar */}
+      <nav className="hidden md:flex fixed top-0 left-0 bottom-0 z-50 w-[var(--sidebar-w)] flex-col border-r border-[var(--dash-border)]">
+        <SidebarContent pathname={pathname} />
       </nav>
 
+      {/* Mobile header + sheet */}
+      <div className="md:hidden fixed top-0 left-0 right-0 z-50 h-14 bg-[var(--dash-bg2)] border-b border-[var(--dash-border)] flex items-center px-4 gap-3">
+        <button
+          onClick={() => setMobileOpen(true)}
+          className="text-[var(--dash-text)] hover:bg-[var(--dash-bg3)] -ml-2 p-2 rounded-md transition-colors"
+        >
+          <Menu className="w-5 h-5" />
+        </button>
+        <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
+          <SheetContent side="left" className="p-0 w-[260px] bg-[var(--dash-bg2)] border-[var(--dash-border)]">
+            <SidebarContent pathname={pathname} onNavigate={() => setMobileOpen(false)} />
+          </SheetContent>
+        </Sheet>
+        <span className="font-[family-name:var(--font-bebas-neue)] text-xl tracking-widest text-[var(--acid)]">
+          CREATIQ
+        </span>
+      </div>
+
       {/* Main content */}
-      <div className="flex-1 flex flex-col min-h-screen" style={{ marginLeft: 'var(--sidebar-w)' }}>
+      <div className="flex-1 flex flex-col min-h-screen md:ml-[var(--sidebar-w)] mt-14 md:mt-0">
         {children}
       </div>
     </div>

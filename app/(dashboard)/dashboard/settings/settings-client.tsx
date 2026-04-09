@@ -147,7 +147,7 @@ export default function SettingsClient({ settings }: { settings: UserSettings | 
                 Performance Thresholds
               </h2>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="roas_winner_threshold" className="text-[var(--dash-text-dim)] text-xs uppercase tracking-wider">
                     Winner ROAS Threshold
@@ -188,7 +188,7 @@ export default function SettingsClient({ settings }: { settings: UserSettings | 
                 Sync Configuration
               </h2>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="sync_frequency" className="text-[var(--dash-text-dim)] text-xs uppercase tracking-wider">
                     Sync Frequency
