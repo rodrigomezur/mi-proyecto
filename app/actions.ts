@@ -20,6 +20,7 @@ import {
   getUserCreatives,
 } from '@/lib/db/queries'
 import { syncAdsForAccount } from '@/lib/meta/sync'
+import { computeWinRateAnalysis, computeKillScale } from '@/lib/meta/analytics'
 
 // ── Schemas ───────────────────────────────────────────────────
 
@@ -468,4 +469,20 @@ export async function getMyCreatives(filters?: {
 }) {
   const profile = await getOrCreateProfile()
   return getUserCreatives(profile.id, filters)
+}
+
+// ── Analytics ─────────────────────────────────────────────────
+
+export async function getMyAnalytics() {
+  const profile = await getOrCreateProfile()
+  const [creatives, settings] = await Promise.all([
+    getUserCreatives(profile.id),
+    getUserSettings(profile.id),
+  ])
+
+  const threshold = settings?.roas_winner_threshold ?? 1.0
+  const winRate = computeWinRateAnalysis(creatives, threshold)
+  const killScale = computeKillScale(creatives, threshold)
+
+  return { winRate, killScale }
 }
