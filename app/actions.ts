@@ -22,6 +22,7 @@ import {
 import { syncAdsForAccount } from '@/lib/meta/sync'
 import { computeWinRateAnalysis, computeKillScale } from '@/lib/meta/analytics'
 import { aggregateReportData, generateAIInsights, saveReport } from '@/lib/meta/reports'
+import { getSubscription, getPlan, hasAccess, getAccountLimit, canUseFeature, type Plan } from '@/lib/subscription'
 
 // ── Schemas ───────────────────────────────────────────────────
 
@@ -55,6 +56,22 @@ const projectSchema = z.object({
 })
 
 // ── Helpers ───────────────────────────────────────────────────
+
+async function requirePlan(minPlan: Plan, feature: string) {
+  const profile = await getOrCreateProfile()
+  const sub = await getSubscription(profile.id)
+  const plan = getPlan(sub)
+  if (!hasAccess(plan, minPlan)) {
+    return { error: `Upgrade to ${minPlan.charAt(0).toUpperCase() + minPlan.slice(1)} to use ${feature}. Go to /pricing.`, plan }
+  }
+  return { plan, profile }
+}
+
+export async function getMyPlan(): Promise<Plan> {
+  const profile = await getOrCreateProfile()
+  const sub = await getSubscription(profile.id)
+  return getPlan(sub)
+}
 
 async function getOrCreateProfile() {
   const supabase = await createClient()
@@ -318,6 +335,9 @@ export async function getMyAdAccounts() {
 }
 
 export async function addAdAccount(formData: FormData) {
+  const check = await requirePlan('solo', 'ad accounts')
+  if ('error' in check) return { error: check.error }
+
   const parsed = adAccountSchema.safeParse({
     ad_account_id: formData.get('ad_account_id'),
     account_name: formData.get('account_name'),
@@ -327,11 +347,16 @@ export async function addAdAccount(formData: FormData) {
     return { error: parsed.error.issues[0].message }
   }
 
-  const profile = await getOrCreateProfile()
+  // Check account limit
+  const accounts = await getUserAdAccounts(check.profile.id)
+  const limit = getAccountLimit(check.plan)
+  if (accounts.length >= limit) {
+    return { error: `Your ${check.plan} plan allows ${limit} accounts. Upgrade for more.` }
+  }
 
   try {
     await addUserAdAccount({
-      user_id: profile.id,
+      user_id: check.profile.id,
       ad_account_id: parsed.data.ad_account_id,
       account_name: parsed.data.account_name,
     })
@@ -378,20 +403,22 @@ export async function toggleAccount(accountId: string, active: boolean) {
 // ── Sync ──────────────────────────────────────────────────────
 
 export async function syncAccount(accountId: string) {
+  const check = await requirePlan('solo', 'sync')
+  if ('error' in check) return { error: check.error }
+
   const idSchema = z.string().uuid('Invalid account ID.')
   const parsed = idSchema.safeParse(accountId)
   if (!parsed.success) {
     return { error: parsed.error.issues[0].message }
   }
 
-  const profile = await getOrCreateProfile()
-  const settings = await getUserSettings(profile.id)
+  const settings = await getUserSettings(check.profile.id)
 
   if (!settings?.meta_access_token) {
     return { error: 'No Meta access token configured. Go to Settings first.' }
   }
 
-  const accounts = await getUserAdAccounts(profile.id)
+  const accounts = await getUserAdAccounts(check.profile.id)
   const account = accounts.find(a => a.id === accountId)
   if (!account) {
     return { error: 'Account not found.' }
@@ -399,7 +426,7 @@ export async function syncAccount(accountId: string) {
 
   try {
     const result = await syncAdsForAccount(
-      profile.id,
+      check.profile.id,
       account.ad_account_id,
       settings.meta_access_token,
       settings.date_range_days ?? 30
@@ -415,14 +442,16 @@ export async function syncAccount(accountId: string) {
 }
 
 export async function syncAllAccounts() {
-  const profile = await getOrCreateProfile()
-  const settings = await getUserSettings(profile.id)
+  const check = await requirePlan('solo', 'sync')
+  if ('error' in check) return { error: check.error }
+
+  const settings = await getUserSettings(check.profile.id)
 
   if (!settings?.meta_access_token) {
     return { error: 'No Meta access token configured. Go to Settings first.' }
   }
 
-  const accounts = await getUserAdAccounts(profile.id)
+  const accounts = await getUserAdAccounts(check.profile.id)
   const activeAccounts = accounts.filter(a => a.active)
 
   if (activeAccounts.length === 0) {
@@ -436,7 +465,7 @@ export async function syncAllAccounts() {
   for (const account of activeAccounts) {
     try {
       const result = await syncAdsForAccount(
-        profile.id,
+        check.profile.id,
         account.ad_account_id,
         settings.meta_access_token,
         settings.date_range_days ?? 30
@@ -469,6 +498,9 @@ export async function getMyCreatives(filters?: {
   sort_dir?: 'asc' | 'desc'
 }) {
   const profile = await getOrCreateProfile()
+  const sub = await getSubscription(profile.id)
+  const plan = getPlan(sub)
+  if (!canUseFeature(plan, 'creatives')) return []
   return getUserCreatives(profile.id, filters)
 }
 
@@ -476,6 +508,7 @@ export async function getMyCreatives(filters?: {
 
 export async function getMyAnalytics() {
   const profile = await getOrCreateProfile()
+
   const [creatives, settings] = await Promise.all([
     getUserCreatives(profile.id),
     getUserSettings(profile.id),
@@ -492,6 +525,10 @@ export async function getMyAnalytics() {
 
 export async function getMyReports() {
   const profile = await getOrCreateProfile()
+  const sub = await getSubscription(profile.id)
+  const plan = getPlan(sub)
+  if (!canUseFeature(plan, 'reports')) return []
+
   const db = createAdminClient()
   const { data, error } = await db
     .from('reports')
@@ -504,11 +541,13 @@ export async function getMyReports() {
 }
 
 export async function generateReport(adAccountId: string) {
-  const profile = await getOrCreateProfile()
+  const check = await requirePlan('solo', 'reports')
+  if ('error' in check) return { error: check.error }
+
   const [creatives, settings, accounts] = await Promise.all([
-    getUserCreatives(profile.id),
-    getUserSettings(profile.id),
-    getUserAdAccounts(profile.id),
+    getUserCreatives(check.profile.id),
+    getUserSettings(check.profile.id),
+    getUserAdAccounts(check.profile.id),
   ])
 
   const account = accounts.find(a => a.ad_account_id === adAccountId)
@@ -528,7 +567,7 @@ export async function generateReport(adAccountId: string) {
   }
 
   try {
-    await saveReport(profile.id, reportData, aiInsights)
+    await saveReport(check.profile.id, reportData, aiInsights)
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : 'Failed to save report.'
     return { error: message }
