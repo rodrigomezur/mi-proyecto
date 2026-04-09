@@ -263,10 +263,12 @@ export async function saveSettings(formData: FormData) {
   const current = await getUserSettings(profile.id)
   const metaTokenChanged = parsed.data.meta_access_token && parsed.data.meta_access_token !== current?.meta_access_token
 
+  const { meta_access_token, gemini_api_key, ...rest } = parsed.data
+
   await upsertUserSettings(profile.id, {
-    ...parsed.data,
-    meta_access_token: parsed.data.meta_access_token || current?.meta_access_token || null,
-    gemini_api_key: parsed.data.gemini_api_key || current?.gemini_api_key || null,
+    ...rest,
+    meta_access_token: meta_access_token || current?.meta_access_token || null,
+    gemini_api_key: gemini_api_key || current?.gemini_api_key || null,
     ...(metaTokenChanged ? { meta_token_created_at: new Date().toISOString() } : {}),
   })
 
