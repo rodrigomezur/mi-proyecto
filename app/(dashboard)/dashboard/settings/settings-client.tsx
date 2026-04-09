@@ -32,24 +32,32 @@ export default function SettingsClient({ settings, subscription }: { settings: U
 
   async function handleTestMeta() {
     setTestingMeta(true)
-    const input = document.getElementById('meta_access_token') as HTMLInputElement
-    const result = await testMetaConnection(input?.value || undefined)
-    if (result.error) {
-      toast.error(result.error)
-    } else {
-      toast.success(`Connected to Meta! (${result.name})`)
+    try {
+      const input = document.getElementById('meta_access_token') as HTMLInputElement
+      const result = await testMetaConnection(input?.value || undefined)
+      if (result.error) {
+        toast.error(result.error)
+      } else {
+        toast.success(`Connected to Meta! (${result.name})`)
+      }
+    } catch {
+      toast.error('Test failed. Try again.')
     }
     setTestingMeta(false)
   }
 
   async function handleTestGemini() {
     setTestingGemini(true)
-    const input = document.getElementById('gemini_api_key') as HTMLInputElement
-    const result = await testGeminiConnection(input?.value || undefined)
-    if (result.error) {
-      toast.error(result.error)
-    } else {
-      toast.success('Connected to Gemini!')
+    try {
+      const input = document.getElementById('gemini_api_key') as HTMLInputElement
+      const result = await testGeminiConnection(input?.value || undefined)
+      if (result.error) {
+        toast.error(result.error)
+      } else {
+        toast.success('Connected to Gemini!')
+      }
+    } catch {
+      toast.error('Test failed. Try again.')
     }
     setTestingGemini(false)
   }

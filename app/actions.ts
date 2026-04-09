@@ -284,17 +284,26 @@ export async function testMetaConnection(tokenFromForm?: string) {
   }
 
   try {
+    const controller = new AbortController()
+    const timeout = setTimeout(() => controller.abort(), 10000)
+
     const res = await fetch(
-      `https://graph.facebook.com/v21.0/me?access_token=${token}`
+      `https://graph.facebook.com/v21.0/me?access_token=${token}`,
+      { signal: controller.signal }
     )
+    clearTimeout(timeout)
+
     const data = await res.json()
 
     if (data.error) {
-      return { error: `Meta API error: ${data.error.message}` }
+      return { error: `Meta API: ${data.error.message}` }
     }
 
     return { success: true, name: data.name || data.id }
-  } catch {
+  } catch (err: unknown) {
+    if (err instanceof Error && err.name === 'AbortError') {
+      return { error: 'Connection timed out. Check your token and try again.' }
+    }
     return { error: 'Failed to connect to Meta API.' }
   }
 }
@@ -309,17 +318,26 @@ export async function testGeminiConnection(keyFromForm?: string) {
   }
 
   try {
+    const controller = new AbortController()
+    const timeout = setTimeout(() => controller.abort(), 10000)
+
     const res = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models?key=${key}`
+      `https://generativelanguage.googleapis.com/v1beta/models?key=${key}`,
+      { signal: controller.signal }
     )
+    clearTimeout(timeout)
+
     const data = await res.json()
 
     if (data.error) {
-      return { error: `Gemini API error: ${data.error.message}` }
+      return { error: `Gemini API: ${data.error.message}` }
     }
 
     return { success: true }
-  } catch {
+  } catch (err: unknown) {
+    if (err instanceof Error && err.name === 'AbortError') {
+      return { error: 'Connection timed out. Check your key and try again.' }
+    }
     return { error: 'Failed to connect to Gemini API.' }
   }
 }
