@@ -18,6 +18,7 @@ import {
   deleteUserAdAccount,
   toggleAdAccountActive,
 } from '@/lib/db/queries'
+import { syncAdsForAccount } from '@/lib/meta/sync'
 
 // ── Schemas ───────────────────────────────────────────────────
 
@@ -369,4 +370,88 @@ export async function toggleAccount(accountId: string, active: boolean) {
 
   revalidatePath('/dashboard/accounts')
   return { success: true }
+}
+
+// ── Sync ──────────────────────────────────────────────────────
+
+export async function syncAccount(accountId: string) {
+  const idSchema = z.string().uuid('Invalid account ID.')
+  const parsed = idSchema.safeParse(accountId)
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0].message }
+  }
+
+  const profile = await getOrCreateProfile()
+  const settings = await getUserSettings(profile.id)
+
+  if (!settings?.meta_access_token) {
+    return { error: 'No Meta access token configured. Go to Settings first.' }
+  }
+
+  const accounts = await getUserAdAccounts(profile.id)
+  const account = accounts.find(a => a.id === accountId)
+  if (!account) {
+    return { error: 'Account not found.' }
+  }
+
+  try {
+    const result = await syncAdsForAccount(
+      profile.id,
+      account.ad_account_id,
+      settings.meta_access_token,
+      settings.date_range_days ?? 30
+    )
+
+    revalidatePath('/dashboard/accounts')
+    revalidatePath('/dashboard/creatives')
+    return { success: true, totalAds: result.totalAds, synced: result.synced }
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : 'Sync failed.'
+    return { error: message }
+  }
+}
+
+export async function syncAllAccounts() {
+  const profile = await getOrCreateProfile()
+  const settings = await getUserSettings(profile.id)
+
+  if (!settings?.meta_access_token) {
+    return { error: 'No Meta access token configured. Go to Settings first.' }
+  }
+
+  const accounts = await getUserAdAccounts(profile.id)
+  const activeAccounts = accounts.filter(a => a.active)
+
+  if (activeAccounts.length === 0) {
+    return { error: 'No active accounts to sync.' }
+  }
+
+  let totalSynced = 0
+  let totalAds = 0
+  const errors: string[] = []
+
+  for (const account of activeAccounts) {
+    try {
+      const result = await syncAdsForAccount(
+        profile.id,
+        account.ad_account_id,
+        settings.meta_access_token,
+        settings.date_range_days ?? 30
+      )
+      totalAds += result.totalAds
+      totalSynced += result.synced
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Unknown error'
+      errors.push(`${account.account_name}: ${message}`)
+    }
+  }
+
+  revalidatePath('/dashboard/accounts')
+  revalidatePath('/dashboard/creatives')
+
+  if (errors.length > 0) {
+    return { error: `Synced ${totalSynced}/${totalAds} ads. Errors: ${errors.join('; ')}` }
+  }
+
+  return { success: true, totalAds, synced: totalSynced }
 }

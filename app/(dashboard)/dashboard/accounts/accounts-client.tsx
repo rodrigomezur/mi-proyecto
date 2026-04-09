@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from 'react'
 import { toast } from 'sonner'
-import { addAdAccount, removeAdAccount, toggleAccount } from '@/app/actions'
+import { addAdAccount, removeAdAccount, toggleAccount, syncAccount, syncAllAccounts } from '@/app/actions'
 import { Card, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -23,6 +23,7 @@ function formatDate(iso: string) {
 
 export default function AccountsClient({ initialAccounts }: { initialAccounts: UserAdAccount[] }) {
   const [showForm, setShowForm] = useState(false)
+  const [syncingId, setSyncingId] = useState<string | null>(null)
   const [isPending, startTransition] = useTransition()
 
   function handleDelete(accountId: string) {
@@ -35,6 +36,28 @@ export default function AccountsClient({ initialAccounts }: { initialAccounts: U
         toast.success('Account removed.')
       }
     })
+  }
+
+  async function handleSync(accountId: string) {
+    setSyncingId(accountId)
+    const result = await syncAccount(accountId)
+    if (result.error) {
+      toast.error(result.error)
+    } else {
+      toast.success(`Synced ${result.synced}/${result.totalAds} ads.`)
+    }
+    setSyncingId(null)
+  }
+
+  async function handleSyncAll() {
+    setSyncingId('all')
+    const result = await syncAllAccounts()
+    if (result.error) {
+      toast.error(result.error)
+    } else {
+      toast.success(`Synced ${result.synced}/${result.totalAds} ads across all accounts.`)
+    }
+    setSyncingId(null)
   }
 
   function handleToggle(accountId: string, currentActive: boolean) {
@@ -71,12 +94,24 @@ export default function AccountsClient({ initialAccounts }: { initialAccounts: U
         >
           Ad Accounts
         </h1>
-        <Button
-          onClick={() => setShowForm(!showForm)}
-          className="bg-[var(--acid)] hover:bg-[var(--acid)] text-black font-semibold text-xs cursor-pointer"
-        >
-          {showForm ? 'Cancel' : '+ Add Account'}
-        </Button>
+        <div className="flex items-center gap-2">
+          {initialAccounts.length > 0 && (
+            <Button
+              variant="outline"
+              onClick={handleSyncAll}
+              disabled={syncingId !== null}
+              className="border-[var(--dash-border)] text-[var(--dash-text-dim)] hover:bg-[var(--dash-bg3)] text-xs cursor-pointer"
+            >
+              {syncingId === 'all' ? 'Syncing...' : 'Sync All'}
+            </Button>
+          )}
+          <Button
+            onClick={() => setShowForm(!showForm)}
+            className="bg-[var(--acid)] hover:bg-[var(--acid)] text-black font-semibold text-xs cursor-pointer"
+          >
+            {showForm ? 'Cancel' : '+ Add Account'}
+          </Button>
+        </div>
       </div>
 
       <div className="flex-1 dashboard-scroll" style={{ padding: '28px' }}>
@@ -218,6 +253,15 @@ export default function AccountsClient({ initialAccounts }: { initialAccounts: U
 
                     {/* Actions */}
                     <div className="flex items-center gap-2 shrink-0">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleSync(account.id)}
+                        disabled={syncingId !== null || !account.active}
+                        className="border-[var(--acid-dim)] text-[var(--acid)] hover:bg-[var(--acid)]/10 text-xs cursor-pointer"
+                      >
+                        {syncingId === account.id ? 'Syncing...' : 'Sync'}
+                      </Button>
                       <Button
                         variant="outline"
                         size="sm"
