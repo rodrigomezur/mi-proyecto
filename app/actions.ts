@@ -21,6 +21,7 @@ import {
 } from '@/lib/db/queries'
 import { syncAdsForAccount } from '@/lib/meta/sync'
 import { computeWinRateAnalysis, computeKillScale } from '@/lib/meta/analytics'
+import { aggregateReportData, generateAIInsights, saveReport } from '@/lib/meta/reports'
 
 // ── Schemas ───────────────────────────────────────────────────
 
@@ -485,4 +486,54 @@ export async function getMyAnalytics() {
   const killScale = computeKillScale(creatives, threshold)
 
   return { winRate, killScale }
+}
+
+// ── Reports ───────────────────────────────────────────────────
+
+export async function getMyReports() {
+  const profile = await getOrCreateProfile()
+  const db = createAdminClient()
+  const { data, error } = await db
+    .from('reports')
+    .select('*')
+    .eq('user_id', profile.id)
+    .order('created_at', { ascending: false })
+
+  if (error) throw error
+  return data ?? []
+}
+
+export async function generateReport(adAccountId: string) {
+  const profile = await getOrCreateProfile()
+  const [creatives, settings, accounts] = await Promise.all([
+    getUserCreatives(profile.id),
+    getUserSettings(profile.id),
+    getUserAdAccounts(profile.id),
+  ])
+
+  const account = accounts.find(a => a.ad_account_id === adAccountId)
+  if (!account) {
+    return { error: 'Account not found.' }
+  }
+
+  const reportData = aggregateReportData(creatives, adAccountId, account.account_name)
+
+  if (reportData.totalCreatives === 0) {
+    return { error: 'No creatives with spend data for this account.' }
+  }
+
+  let aiInsights = 'AI insights not available (no Gemini API key configured).'
+  if (settings?.gemini_api_key) {
+    aiInsights = await generateAIInsights(reportData, settings.gemini_api_key)
+  }
+
+  try {
+    await saveReport(profile.id, reportData, aiInsights)
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : 'Failed to save report.'
+    return { error: message }
+  }
+
+  revalidatePath('/dashboard/reports')
+  return { success: true }
 }
