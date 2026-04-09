@@ -328,3 +328,38 @@ export async function toggleAdAccountActive(accountId: string, userId: string, a
 
   if (error) throw error
 }
+
+// ── Creatives (user-scoped) ───────────────────────────────────
+
+export type CreativeFiltersUser = {
+  ad_account_id?: string
+  ad_type?: string
+  analysis_status?: string
+  sort_by?: string
+  sort_dir?: 'asc' | 'desc'
+}
+
+export async function getUserCreatives(userId: string, filters: CreativeFiltersUser = {}) {
+  let query = db()
+    .from('creatives')
+    .select('*')
+    .eq('user_id', userId)
+
+  if (filters.ad_account_id) {
+    query = query.eq('ad_account_id', filters.ad_account_id)
+  }
+  if (filters.ad_type) {
+    query = query.eq('ad_type', filters.ad_type)
+  }
+  if (filters.analysis_status) {
+    query = query.eq('analysis_status', filters.analysis_status)
+  }
+
+  const sortCol = filters.sort_by || 'spend'
+  const sortAsc = (filters.sort_dir || 'desc') === 'asc'
+  query = query.order(sortCol, { ascending: sortAsc })
+
+  const { data, error } = await query
+  if (error) throw error
+  return data ?? []
+}

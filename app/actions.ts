@@ -17,6 +17,7 @@ import {
   addUserAdAccount,
   deleteUserAdAccount,
   toggleAdAccountActive,
+  getUserCreatives,
 } from '@/lib/db/queries'
 import { syncAdsForAccount } from '@/lib/meta/sync'
 
@@ -454,4 +455,17 @@ export async function syncAllAccounts() {
   }
 
   return { success: true, totalAds, synced: totalSynced }
+}
+
+// ── Creatives ─────────────────────────────────────────────────
+
+export async function getMyCreatives(filters?: {
+  ad_account_id?: string
+  ad_type?: string
+  analysis_status?: string
+  sort_by?: string
+  sort_dir?: 'asc' | 'desc'
+}) {
+  const profile = await getOrCreateProfile()
+  return getUserCreatives(profile.id, filters)
 }
