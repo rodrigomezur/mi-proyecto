@@ -1,4 +1,11 @@
 import { createServerClient } from '@/lib/db/supabase'
+import {
+  analyzeImageWithGemini,
+  analyzeVideoWithGemini,
+  getVideoSourceUrl,
+  generateIterationRecommendations,
+  calculateIterationPriority,
+} from '@/lib/meta/gemini'
 
 const META_API_VERSION = 'v21.0'
 const META_BASE_URL = `https://graph.facebook.com/${META_API_VERSION}`
@@ -71,6 +78,7 @@ type TransformedAd = {
   ad_headline: string | null
   ad_description: string | null
   ad_cta: string | null
+  _videoId?: string | null
 }
 
 // ── Fetch Ads from Meta ─────────────────────────────────────
@@ -127,38 +135,29 @@ function transformAdData(ad: MetaAd, adAccountId: string): TransformedAd {
   const linkData = storySpec?.link_data
   const assetFeed = creative?.asset_feed_spec
 
-  // Detect ad type
   const videoId = videoData?.video_id || creative?.video_id || assetFeed?.videos?.[0]?.video_id
   const adType = videoId ? 'video' : 'image'
 
-  // Image URL (priority chain)
   let imageUrl = linkData?.image_url || linkData?.picture || creative?.image_url || creative?.thumbnail_url || null
-
-  // Video URL
   const videoUrl = videoId ? `https://www.facebook.com/ads/videos/${videoId}` : null
 
-  // Metrics
   const spend = parseFloat(insights?.spend || '0')
   const impressions = parseInt(insights?.impressions || '0', 10)
   const clicks = parseInt(insights?.clicks || '0', 10)
   const ctr = parseFloat(insights?.ctr || '0')
   const cpm = parseFloat(insights?.cpm || '0')
 
-  // Video completion metrics
   const video25 = parseInt(insights?.video_p25_watched_actions?.[0]?.value || '0', 10)
   const video50 = parseInt(insights?.video_p50_watched_actions?.[0]?.value || '0', 10)
   const video75 = parseInt(insights?.video_p75_watched_actions?.[0]?.value || '0', 10)
   const video100 = parseInt(insights?.video_p100_watched_actions?.[0]?.value || '0', 10)
 
-  // 3s views from actions array
   const videoViews3s = getActionValue(insights?.actions, 'video_view')
 
-  // Calculated metrics
   const hookRate = impressions > 0 && videoViews3s > 0 ? videoViews3s / impressions : 0
   const holdRate = impressions > 0 && video25 > 0 ? video25 / impressions : 0
   const costPerVideoView = videoViews3s > 0 ? spend / videoViews3s : 0
 
-  // Conversions (priority: purchase > lead > registration)
   const conversions =
     getActionValue(insights?.actions, 'purchase') ||
     getActionValue(insights?.actions, 'lead') ||
@@ -169,10 +168,8 @@ function transformAdData(ad: MetaAd, adAccountId: string): TransformedAd {
     getCostPerAction(insights?.cost_per_action_type, 'lead')
 
   const roas = parseFloat(insights?.purchase_roas?.[0]?.value || '0')
-
   const linkClicks = getActionValue(insights?.actions, 'link_click')
 
-  // Ad copy
   const adHeadline = linkData?.title || videoData?.title || null
   const adDescription = linkData?.message || linkData?.description || videoData?.message || null
   const adCta = linkData?.call_to_action?.type || videoData?.call_to_action?.type || null
@@ -187,26 +184,32 @@ function transformAdData(ad: MetaAd, adAccountId: string): TransformedAd {
     video_url: videoUrl,
     image_url: imageUrl,
     video_thumbnail_url: videoId ? creative?.thumbnail_url || null : null,
-    spend,
-    impressions,
-    clicks,
-    ctr,
-    conversions,
-    cpa,
-    roas,
-    cpm,
+    spend, impressions, clicks, ctr, conversions, cpa, roas, cpm,
     link_clicks: linkClicks,
     video_views_3s: videoViews3s,
-    hook_rate: hookRate,
-    hold_rate: holdRate,
-    video_25: video25,
-    video_50: video50,
-    video_75: video75,
-    video_100: video100,
+    hook_rate: hookRate, hold_rate: holdRate,
+    video_25: video25, video_50: video50, video_75: video75, video_100: video100,
     cost_per_video_view: costPerVideoView,
-    ad_headline: adHeadline,
-    ad_description: adDescription,
-    ad_cta: adCta,
+    ad_headline: adHeadline, ad_description: adDescription, ad_cta: adCta,
+    _videoId: videoId || null,
+  }
+}
+
+// ── Compute Benchmarks ──────────────────────────────────────
+
+function computeBenchmarks(creatives: Array<{ spend: number; roas: number; cpa: number; hook_rate: number; hold_rate: number; ctr: number }>) {
+  const withSpend = creatives.filter(c => c.spend > 0)
+  if (withSpend.length === 0) return { avgSpend: 0, avgROAS: 0, avgCPA: 0, avgHookRate: 0, avgHoldRate: 0, avgCTR: 0 }
+
+  const avg = (arr: number[]) => { const f = arr.filter(n => n > 0); return f.length > 0 ? f.reduce((a, b) => a + b, 0) / f.length : 0 }
+
+  return {
+    avgSpend: avg(withSpend.map(c => c.spend)),
+    avgROAS: avg(withSpend.map(c => c.roas)),
+    avgCPA: avg(withSpend.map(c => c.cpa)),
+    avgHookRate: avg(withSpend.map(c => c.hook_rate)),
+    avgHoldRate: avg(withSpend.map(c => c.hold_rate)),
+    avgCTR: avg(withSpend.map(c => c.ctr)),
   }
 }
 
@@ -216,34 +219,142 @@ export async function syncAdsForAccount(
   userId: string,
   adAccountId: string,
   accessToken: string,
-  dateRangeDays: number = 30
-): Promise<{ totalAds: number; synced: number }> {
-  // Fetch ads from Meta
+  dateRangeDays: number = 30,
+  geminiApiKey?: string | null,
+): Promise<{ totalAds: number; synced: number; analyzed: number }> {
   const formattedId = adAccountId.startsWith('act_') ? adAccountId : `act_${adAccountId}`
   const ads = await fetchMetaAds(formattedId, accessToken, dateRangeDays)
 
   if (ads.length === 0) {
-    return { totalAds: 0, synced: 0 }
+    return { totalAds: 0, synced: 0, analyzed: 0 }
   }
 
   const db = createServerClient()
   let synced = 0
+  let analyzed = 0
 
-  // Transform and upsert each ad
+  // Phase 1: Fetch + upsert all ads
+  const transformedAds: (TransformedAd & { upsertId?: string })[] = []
+
   for (const ad of ads) {
     const transformed = transformAdData(ad, formattedId)
 
-    const { error } = await db.from('creatives').upsert(
+    const { data, error } = await db.from('creatives').upsert(
       {
         user_id: userId,
         ad_account_id: formattedId,
         ...transformed,
+        _videoId: undefined, // don't store internal field
         last_synced: new Date().toISOString(),
       },
       { onConflict: 'user_id,ad_id' }
-    )
+    ).select('id, analysis_status').single()
 
-    if (!error) synced++
+    if (!error) {
+      synced++
+      transformedAds.push({ ...transformed, upsertId: data?.id })
+    }
+  }
+
+  // Phase 2: AI analysis (if Gemini key available)
+  if (geminiApiKey) {
+    // Get all creatives for benchmarks
+    const { data: allCreatives } = await db
+      .from('creatives')
+      .select('spend, roas, cpa, hook_rate, hold_rate, ctr')
+      .eq('user_id', userId)
+      .eq('ad_account_id', formattedId)
+      .gt('spend', 0)
+
+    const benchmarks = computeBenchmarks(allCreatives || [])
+
+    for (const ad of transformedAds) {
+      if (!ad.upsertId) continue
+
+      // Check if already analyzed
+      const { data: existing } = await db
+        .from('creatives')
+        .select('analysis_status')
+        .eq('id', ad.upsertId)
+        .single()
+
+      if (existing?.analysis_status === 'complete') continue
+
+      try {
+        let analysisResult
+
+        if (ad.ad_type === 'video' && ad._videoId) {
+          // Try video analysis first
+          const videoSource = await getVideoSourceUrl(ad._videoId, accessToken)
+          if (videoSource) {
+            try {
+              analysisResult = await analyzeVideoWithGemini(
+                videoSource, geminiApiKey, ad.ad_description || '', ad.ad_headline || '', ad.ad_cta || ''
+              )
+            } catch (e: unknown) {
+              const msg = e instanceof Error ? e.message : ''
+              if (msg === 'VIDEO_TOO_LARGE' && ad.image_url) {
+                // Fallback to thumbnail
+                analysisResult = await analyzeImageWithGemini(
+                  ad.image_url, geminiApiKey, ad.ad_description || '', ad.ad_headline || '', ad.ad_cta || ''
+                )
+              } else {
+                throw e
+              }
+            }
+          } else if (ad.image_url || ad.video_thumbnail_url) {
+            // No video source, use thumbnail
+            analysisResult = await analyzeImageWithGemini(
+              (ad.video_thumbnail_url || ad.image_url)!, geminiApiKey, ad.ad_description || '', ad.ad_headline || '', ad.ad_cta || ''
+            )
+          }
+        } else if (ad.image_url) {
+          analysisResult = await analyzeImageWithGemini(
+            ad.image_url, geminiApiKey, ad.ad_description || '', ad.ad_headline || '', ad.ad_cta || ''
+          )
+        }
+
+        if (analysisResult) {
+          // Generate iteration recs if has spend
+          let iterations = null
+          let priority = 0
+          if (ad.spend > 0) {
+            iterations = await generateIterationRecommendations(
+              { ...ad, asset_type: analysisResult.asset_type, visual_format: analysisResult.visual_format,
+                messaging_angle: analysisResult.messaging_angle, hook_tactic: analysisResult.hook_tactic,
+                offer_type: analysisResult.offer_type, ai_summary: analysisResult.summary },
+              benchmarks, geminiApiKey
+            )
+            priority = calculateIterationPriority(ad, benchmarks)
+          }
+
+          await db.from('creatives').update({
+            asset_type: analysisResult.asset_type,
+            visual_format: analysisResult.visual_format,
+            messaging_angle: analysisResult.messaging_angle,
+            hook_tactic: analysisResult.hook_tactic,
+            offer_type: analysisResult.offer_type,
+            funnel_stage: analysisResult.funnel_stage,
+            ai_summary: analysisResult.summary,
+            analysis_status: 'complete',
+            analyzed_at: new Date().toISOString(),
+            ...(iterations ? {
+              strengths: iterations.strengths,
+              weaknesses: iterations.weaknesses,
+              iteration_recommendations: iterations.iterations,
+              iteration_priority: priority,
+            } : {}),
+          }).eq('id', ad.upsertId)
+
+          analyzed++
+        }
+      } catch {
+        // Mark as failed but don't stop sync
+        await db.from('creatives').update({
+          analysis_status: 'failed',
+        }).eq('id', ad.upsertId)
+      }
+    }
   }
 
   // Update account last_synced
@@ -253,5 +364,5 @@ export async function syncAdsForAccount(
     .eq('user_id', userId)
     .eq('ad_account_id', formattedId)
 
-  return { totalAds: ads.length, synced }
+  return { totalAds: ads.length, synced, analyzed }
 }

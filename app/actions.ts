@@ -20,6 +20,7 @@ import {
   getUserCreatives,
 } from '@/lib/db/queries'
 import { syncAdsForAccount } from '@/lib/meta/sync'
+import { analyzeImageWithGemini, analyzeVideoWithGemini, getVideoSourceUrl, generateIterationRecommendations, calculateIterationPriority } from '@/lib/meta/gemini'
 import { computeWinRateAnalysis, computeKillScale } from '@/lib/meta/analytics'
 import { aggregateReportData, generateAIInsights, saveReport } from '@/lib/meta/reports'
 import { getSubscription, getPlan, hasAccess, getAccountLimit, canUseFeature, type Plan } from '@/lib/subscription'
@@ -468,7 +469,8 @@ export async function syncAccount(accountId: string) {
       check.profile.id,
       account.ad_account_id,
       settings.meta_access_token,
-      settings.date_range_days ?? 30
+      settings.date_range_days ?? 30,
+      settings.gemini_api_key,
     )
 
     revalidatePath('/dashboard/accounts')
@@ -507,7 +509,8 @@ export async function syncAllAccounts() {
         check.profile.id,
         account.ad_account_id,
         settings.meta_access_token,
-        settings.date_range_days ?? 30
+        settings.date_range_days ?? 30,
+        settings.gemini_api_key,
       )
       totalAds += result.totalAds
       totalSynced += result.synced
@@ -528,6 +531,117 @@ export async function syncAllAccounts() {
 }
 
 // ── Creatives ─────────────────────────────────────────────────
+
+export async function reanalyzeCreative(creativeId: string) {
+  const check = await requirePlan('solo', 'AI analysis')
+  if ('error' in check) return { error: check.error }
+
+  const settings = await getUserSettings(check.profile.id)
+  if (!settings?.gemini_api_key) return { error: 'No Gemini API key configured.' }
+  if (!settings?.meta_access_token) return { error: 'No Meta access token configured.' }
+
+  const db = createAdminClient()
+  const { data: creative } = await db
+    .from('creatives')
+    .select('*')
+    .eq('id', creativeId)
+    .eq('user_id', check.profile.id)
+    .single()
+
+  if (!creative) return { error: 'Creative not found.' }
+
+  try {
+    // Reset status
+    await db.from('creatives').update({ analysis_status: 'pending' }).eq('id', creativeId)
+
+    // Run analysis
+    let analysisResult
+    const imageUrl = creative.image_url || creative.video_thumbnail_url
+
+    if (creative.ad_type === 'video' && creative.video_url) {
+      const videoId = creative.video_url.split('/').pop()
+      if (videoId) {
+        const videoSource = await getVideoSourceUrl(videoId, settings.meta_access_token)
+        if (videoSource) {
+          try {
+            analysisResult = await analyzeVideoWithGemini(
+              videoSource, settings.gemini_api_key, creative.ad_description || '', creative.ad_headline || '', creative.ad_cta || ''
+            )
+          } catch {
+            if (imageUrl) {
+              analysisResult = await analyzeImageWithGemini(
+                imageUrl, settings.gemini_api_key, creative.ad_description || '', creative.ad_headline || '', creative.ad_cta || ''
+              )
+            }
+          }
+        } else if (imageUrl) {
+          analysisResult = await analyzeImageWithGemini(
+            imageUrl, settings.gemini_api_key, creative.ad_description || '', creative.ad_headline || '', creative.ad_cta || ''
+          )
+        }
+      }
+    } else if (imageUrl) {
+      analysisResult = await analyzeImageWithGemini(
+        imageUrl, settings.gemini_api_key, creative.ad_description || '', creative.ad_headline || '', creative.ad_cta || ''
+      )
+    }
+
+    if (!analysisResult) return { error: 'No image or video URL available for analysis.' }
+
+    // Generate iterations
+    const { data: allCreatives } = await db
+      .from('creatives')
+      .select('spend, roas, cpa, hook_rate, hold_rate, ctr')
+      .eq('user_id', check.profile.id)
+      .eq('ad_account_id', creative.ad_account_id)
+      .gt('spend', 0)
+
+    const withSpend = (allCreatives || []).filter((c: { spend: number }) => c.spend > 0)
+    const avgFn = (arr: number[]) => { const f = arr.filter(n => n > 0); return f.length ? f.reduce((a, b) => a + b, 0) / f.length : 0 }
+    const benchmarks = {
+      avgSpend: avgFn(withSpend.map((c: { spend: number }) => c.spend)),
+      avgROAS: avgFn(withSpend.map((c: { roas: number }) => c.roas)),
+      avgCPA: avgFn(withSpend.map((c: { cpa: number }) => c.cpa)),
+      avgHookRate: avgFn(withSpend.map((c: { hook_rate: number }) => c.hook_rate)),
+      avgHoldRate: avgFn(withSpend.map((c: { hold_rate: number }) => c.hold_rate)),
+      avgCTR: avgFn(withSpend.map((c: { ctr: number }) => c.ctr)),
+    }
+
+    let iterations = null
+    let priority = 0
+    if (creative.spend > 0) {
+      iterations = await generateIterationRecommendations(
+        { ...creative, ...analysisResult, ai_summary: analysisResult.summary },
+        benchmarks, settings.gemini_api_key
+      )
+      priority = calculateIterationPriority(creative, benchmarks)
+    }
+
+    await db.from('creatives').update({
+      asset_type: analysisResult.asset_type,
+      visual_format: analysisResult.visual_format,
+      messaging_angle: analysisResult.messaging_angle,
+      hook_tactic: analysisResult.hook_tactic,
+      offer_type: analysisResult.offer_type,
+      funnel_stage: analysisResult.funnel_stage,
+      ai_summary: analysisResult.summary,
+      analysis_status: 'complete',
+      analyzed_at: new Date().toISOString(),
+      ...(iterations ? {
+        strengths: iterations.strengths,
+        weaknesses: iterations.weaknesses,
+        iteration_recommendations: iterations.iterations,
+        iteration_priority: priority,
+      } : {}),
+    }).eq('id', creativeId)
+
+    revalidatePath('/dashboard/creatives')
+    return { success: true }
+  } catch (err: unknown) {
+    await db.from('creatives').update({ analysis_status: 'failed' }).eq('id', creativeId)
+    return { error: err instanceof Error ? err.message : 'Analysis failed.' }
+  }
+}
 
 export async function getMyCreatives(filters?: {
   ad_account_id?: string
