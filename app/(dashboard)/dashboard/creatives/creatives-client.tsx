@@ -4,6 +4,7 @@ import { useState, useMemo } from 'react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
+import CreativeDetail from '@/components/creative-detail'
 import type { UserAdAccount } from '@/lib/db/types'
 
 type Creative = {
@@ -17,18 +18,39 @@ type Creative = {
   ad_type: string | null
   image_url: string | null
   video_url: string | null
+  video_thumbnail_url: string | null
   spend: number
   impressions: number
   clicks: number
   ctr: number
   roas: number
   cpa: number
+  cpm: number
   hook_rate: number
   hold_rate: number
+  video_views_3s: number
+  video_25: number
+  video_50: number
+  video_75: number
+  video_100: number
+  link_clicks: number
+  ad_headline: string | null
+  ad_description: string | null
+  ad_cta: string | null
   analysis_status: string | null
   asset_type: string | null
+  visual_format: string | null
+  messaging_angle: string | null
+  hook_tactic: string | null
+  offer_type: string | null
   funnel_stage: string | null
   ai_summary: string | null
+  strengths: string[] | null
+  weaknesses: string[] | null
+  iteration_recommendations: Array<{
+    title: string; description: string; focus_area: string; expected_impact: string; effort: string
+  }> | null
+  iteration_priority: number | null
   last_synced: string | null
 }
 
@@ -58,6 +80,7 @@ export default function CreativesClient({
   const [filterType, setFilterType] = useState('')
   const [filterStatus, setFilterStatus] = useState('')
   const [sortBy, setSortBy] = useState('spend')
+  const [selected, setSelected] = useState<Creative | null>(null)
 
   const filtered = useMemo(() => {
     let result = initialCreatives
@@ -233,7 +256,11 @@ export default function CreativesClient({
             {/* Creatives grid */}
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
               {filtered.map(creative => (
-                <Card key={creative.id} className="bg-[var(--dash-bg2)] border-[var(--dash-border)] overflow-hidden transition-all duration-200 hover:border-[var(--dash-border-bright)] hover:shadow-lg hover:shadow-black/20">
+                <Card
+                  key={creative.id}
+                  onClick={() => setSelected(creative)}
+                  className="bg-[var(--dash-bg2)] border-[var(--dash-border)] overflow-hidden transition-all duration-200 hover:border-[var(--dash-border-bright)] hover:shadow-lg hover:shadow-black/20 cursor-pointer"
+                >
                   {/* Thumbnail */}
                   {creative.image_url && (
                     <div className="h-40 bg-[var(--dash-bg3)] overflow-hidden">
@@ -351,6 +378,13 @@ export default function CreativesClient({
           </>
         )}
       </div>
+
+      {/* Detail modal */}
+      <CreativeDetail
+        creative={selected}
+        open={selected !== null}
+        onClose={() => setSelected(null)}
+      />
     </>
   )
 }
