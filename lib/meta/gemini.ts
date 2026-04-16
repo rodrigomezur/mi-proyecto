@@ -1,5 +1,33 @@
-const GEMINI_MODEL = 'gemini-2.5-flash'
+const GEMINI_MODELS = ['gemini-2.5-flash', 'gemini-2.5-flash-lite', 'gemini-2.0-flash']
 const MAX_VIDEO_BYTES = 50 * 1024 * 1024 // 50MB
+
+async function callGemini(apiKey: string, body: Record<string, unknown>): Promise<string> {
+  let lastError = ''
+  for (const model of GEMINI_MODELS) {
+    try {
+      const res = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+        }
+      )
+      const data = await res.json()
+      if (data.error) {
+        lastError = data.error.message || 'Unknown error'
+        if (data.error.code === 503 || data.error.status === 'UNAVAILABLE') continue
+        throw new Error(lastError)
+      }
+      const text = data.candidates?.[0]?.content?.parts?.[0]?.text || ''
+      if (text) return text
+    } catch (e: unknown) {
+      lastError = e instanceof Error ? e.message : 'Unknown error'
+      continue
+    }
+  }
+  throw new Error(`All Gemini models failed. Last error: ${lastError}`)
+}
 
 type AnalysisResult = {
   asset_type: string
@@ -73,26 +101,15 @@ export async function analyzeImageWithGemini(
 
   const prompt = ANALYSIS_PROMPT + buildAdContext(adCopy, headline, cta)
 
-  const res = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${apiKey}`,
-    {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        contents: [{
-          parts: [
-            { inline_data: { mime_type: mimeType, data: base64Image } },
-            { text: prompt },
-          ],
-        }],
-      }),
-    }
-  )
+  const text = await callGemini(apiKey, {
+    contents: [{
+      parts: [
+        { inline_data: { mime_type: mimeType, data: base64Image } },
+        { text: prompt },
+      ],
+    }],
+  })
 
-  if (!res.ok) throw new Error(`Gemini image analysis failed: ${await res.text()}`)
-
-  const data = await res.json()
-  const text = data.candidates?.[0]?.content?.parts?.[0]?.text || ''
   return parseJsonResponse(text) as unknown as AnalysisResult
 }
 
@@ -144,26 +161,15 @@ export async function analyzeVideoWithGemini(
 
   const prompt = ANALYSIS_PROMPT + buildAdContext(adCopy, headline, cta)
 
-  const res = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${apiKey}`,
-    {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        contents: [{
-          parts: [
-            { file_data: { mime_type: 'video/mp4', file_uri: fileUri } },
-            { text: prompt },
-          ],
-        }],
-      }),
-    }
-  )
+  const text = await callGemini(apiKey, {
+    contents: [{
+      parts: [
+        { file_data: { mime_type: 'video/mp4', file_uri: fileUri } },
+        { text: prompt },
+      ],
+    }],
+  })
 
-  if (!res.ok) throw new Error(`Gemini video analysis failed: ${await res.text()}`)
-
-  const data = await res.json()
-  const text = data.candidates?.[0]?.content?.parts?.[0]?.text || ''
   return parseJsonResponse(text) as unknown as AnalysisResult
 }
 
@@ -234,19 +240,9 @@ Return a JSON object:
 Provide 3-5 iterations. Return ONLY valid JSON.`
 
   try {
-    const res = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${apiKey}`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] }),
-      }
-    )
-
-    if (!res.ok) return null
-
-    const data = await res.json()
-    const text = data.candidates?.[0]?.content?.parts?.[0]?.text || ''
+    const text = await callGemini(apiKey, {
+      contents: [{ parts: [{ text: prompt }] }],
+    })
     return parseJsonResponse(text) as unknown as IterationResult
   } catch {
     return null

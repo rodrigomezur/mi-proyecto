@@ -87,7 +87,7 @@ export default function CreativeDetail({
     if (result.error) {
       toast.error(result.error)
     } else {
-      toast.success('Analysis complete! Refresh to see results.')
+      toast.success('Analysis complete! Close and reopen to see results.')
     }
     setAnalyzing(false)
   }

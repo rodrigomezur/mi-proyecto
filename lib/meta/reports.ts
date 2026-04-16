@@ -129,24 +129,27 @@ Provide insights on:
 3. Specific recommendations to improve underperforming ads
 4. Suggested tests or optimizations for next week`
 
+  const MODELS = ['gemini-2.5-flash', 'gemini-2.5-flash-lite', 'gemini-2.0-flash']
+
   try {
-    const res = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiApiKey}`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: [{ parts: [{ text: prompt }] }],
-        }),
-      }
-    )
-
-    if (!res.ok) {
-      return 'AI insights unavailable — Gemini API error.'
+    for (const model of MODELS) {
+      const res = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${geminiApiKey}`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            contents: [{ parts: [{ text: prompt }] }],
+          }),
+        }
+      )
+      const data = await res.json()
+      if (data.error?.code === 503) continue
+      if (data.error) return 'AI insights unavailable — Gemini API error.'
+      const text = data.candidates?.[0]?.content?.parts?.[0]?.text
+      if (text) return text
     }
-
-    const data = await res.json()
-    return data.candidates?.[0]?.content?.parts?.[0]?.text || 'Unable to generate insights.'
+    return 'AI insights unavailable — all models busy.'
   } catch {
     return 'AI insights unavailable — connection error.'
   }
