@@ -1,4 +1,4 @@
-const GEMINI_MODEL = 'gemini-2.5-pro-preview-06-05'
+const GEMINI_MODEL = 'gemini-2.5-flash'
 const MAX_VIDEO_BYTES = 50 * 1024 * 1024 // 50MB
 
 type AnalysisResult = {

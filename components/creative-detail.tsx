@@ -97,7 +97,7 @@ export default function CreativeDetail({
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="bg-[var(--dash-bg)] border-[var(--dash-border)] max-w-3xl w-full max-h-[90vh] overflow-y-auto rounded-xl p-0 [&>button:last-child]:hidden">
+      <DialogContent className="bg-[var(--dash-bg)] border-[var(--dash-border)] max-w-4xl w-[95vw] max-h-[90vh] overflow-y-auto rounded-xl p-0 [&>button:last-child]:hidden">
         {/* Header */}
         <div className="sticky top-0 z-10 bg-[var(--dash-bg)] border-b border-[var(--dash-border)] px-6 py-4 flex items-center justify-between">
           <div className="flex-1 min-w-0 mr-4">
