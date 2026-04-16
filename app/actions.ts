@@ -301,6 +301,15 @@ export async function testMetaConnection(tokenFromForm?: string) {
       return { error: `Meta API: ${data.error.message}` }
     }
 
+    // Auto-save token on successful test
+    if (token !== settings?.meta_access_token) {
+      await upsertUserSettings(profile.id, {
+        meta_access_token: token,
+        meta_token_created_at: new Date().toISOString(),
+      })
+      revalidatePath('/dashboard/settings')
+    }
+
     return { success: true, name: data.name || data.id }
   } catch (err: unknown) {
     if (err instanceof Error && err.name === 'AbortError') {
@@ -333,6 +342,14 @@ export async function testGeminiConnection(keyFromForm?: string) {
 
     if (data.error) {
       return { error: `Gemini API: ${data.error.message}` }
+    }
+
+    // Auto-save key on successful test
+    if (key !== settings?.gemini_api_key) {
+      await upsertUserSettings(profile.id, {
+        gemini_api_key: key,
+      })
+      revalidatePath('/dashboard/settings')
     }
 
     return { success: true }
