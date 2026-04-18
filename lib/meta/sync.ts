@@ -221,15 +221,26 @@ export async function syncAdsForAccount(
   accessToken: string,
   dateRangeDays: number = 30,
   geminiApiKey?: string | null,
+  jobId?: string,
 ): Promise<{ totalAds: number; synced: number; analyzed: number }> {
   const formattedId = adAccountId.startsWith('act_') ? adAccountId : `act_${adAccountId}`
+  const db = createServerClient()
+
+  const updateJob = async (patch: Record<string, unknown>) => {
+    if (jobId) await db.from('sync_jobs').update(patch).eq('id', jobId)
+  }
+
+  await updateJob({ status: 'fetching' })
+
   const ads = await fetchMetaAds(formattedId, accessToken, dateRangeDays)
 
   if (ads.length === 0) {
+    await updateJob({ status: 'complete', total_ads: 0, completed_at: new Date().toISOString() })
     return { totalAds: 0, synced: 0, analyzed: 0 }
   }
 
-  const db = createServerClient()
+  await updateJob({ status: 'processing', total_ads: ads.length })
+
   let synced = 0
   let analyzed = 0
 
@@ -253,8 +264,10 @@ export async function syncAdsForAccount(
     if (!error) {
       synced++
       transformedAds.push({ ...transformed, upsertId: data?.id })
+      if (synced % 5 === 0) await updateJob({ processed_ads: synced })
     }
   }
+  await updateJob({ processed_ads: synced })
 
   // Phase 2: AI analysis (if Gemini key available)
   if (geminiApiKey) {
@@ -347,6 +360,7 @@ export async function syncAdsForAccount(
           }).eq('id', ad.upsertId)
 
           analyzed++
+          if (analyzed % 3 === 0) await updateJob({ analyzed_ads: analyzed })
         }
       } catch {
         // Mark as failed but don't stop sync
@@ -364,5 +378,27 @@ export async function syncAdsForAccount(
     .eq('user_id', userId)
     .eq('ad_account_id', formattedId)
 
+  await updateJob({
+    status: 'complete',
+    processed_ads: synced,
+    analyzed_ads: analyzed,
+    completed_at: new Date().toISOString(),
+  })
+
   return { totalAds: ads.length, synced, analyzed }
+}
+
+// ── Fetch Available Accounts from Meta ──────────────────────
+
+export async function fetchMetaAccounts(accessToken: string): Promise<Array<{ id: string; name: string }>> {
+  const res = await fetch(
+    `https://graph.facebook.com/v21.0/me/adaccounts?fields=account_id,name&limit=100&access_token=${accessToken}`
+  )
+  const data = await res.json()
+  if (data.error) throw new Error(data.error.message)
+
+  return (data.data || []).map((a: { account_id: string; name: string }) => ({
+    id: `act_${a.account_id}`,
+    name: a.name,
+  }))
 }

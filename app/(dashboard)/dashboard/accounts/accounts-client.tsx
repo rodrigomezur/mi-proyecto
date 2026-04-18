@@ -1,8 +1,8 @@
 'use client'
 
-import { useState, useTransition } from 'react'
+import { useState, useTransition, useEffect } from 'react'
 import { toast } from 'sonner'
-import { addAdAccount, removeAdAccount, toggleAccount, syncAccount, syncAllAccounts } from '@/app/actions'
+import { addAdAccount, removeAdAccount, toggleAccount, syncAccount, syncAllAccounts, listAvailableMetaAccounts } from '@/app/actions'
 import { Card, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -25,6 +25,27 @@ export default function AccountsClient({ initialAccounts }: { initialAccounts: U
   const [showForm, setShowForm] = useState(false)
   const [syncingId, setSyncingId] = useState<string | null>(null)
   const [isPending, startTransition] = useTransition()
+  const [availableAccounts, setAvailableAccounts] = useState<Array<{ id: string; name: string }>>([])
+  const [loadingAvailable, setLoadingAvailable] = useState(false)
+
+  async function handleLoadAvailable() {
+    setLoadingAvailable(true)
+    const result = await listAvailableMetaAccounts()
+    if (result.error) {
+      toast.error(result.error)
+    } else if (result.accounts) {
+      setAvailableAccounts(result.accounts)
+    }
+    setLoadingAvailable(false)
+  }
+
+  // Load available accounts when form opens
+  useEffect(() => {
+    if (showForm && availableAccounts.length === 0) {
+      handleLoadAvailable()
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showForm])
 
   function handleDelete(accountId: string) {
     if (!confirm('Delete this account and all its data?')) return
@@ -125,8 +146,11 @@ export default function AccountsClient({ initialAccounts }: { initialAccounts: U
                     const result = await addAdAccount(formData)
                     if (result.error) {
                       toast.error(result.error)
+                    } else if (result.autoSyncStarted) {
+                      toast.success('Account connected! Initial sync started in background (90-day baseline).')
+                      setShowForm(false)
                     } else {
-                      toast.success('Account connected!')
+                      toast.success('Account connected! Configure your Meta token in Settings to sync.')
                       setShowForm(false)
                     }
                   })
@@ -138,16 +162,39 @@ export default function AccountsClient({ initialAccounts }: { initialAccounts: U
                     <Label htmlFor="ad_account_id" className="text-[var(--dash-text-dim)] text-xs uppercase tracking-wider">
                       Account ID
                     </Label>
-                    <Input
-                      id="ad_account_id"
-                      name="ad_account_id"
-                      type="text"
-                      required
-                      placeholder="act_123456789"
-                      className="bg-[var(--dash-bg)] border-[var(--dash-border)] text-[var(--dash-text)] placeholder:text-[var(--dash-text-muted)]"
-                    />
+                    {loadingAvailable ? (
+                      <div className="text-xs text-[var(--dash-text-muted)] py-2">Loading your Meta accounts...</div>
+                    ) : availableAccounts.length > 0 ? (
+                      <select
+                        id="ad_account_id"
+                        name="ad_account_id"
+                        required
+                        onChange={(e) => {
+                          const selected = availableAccounts.find(a => a.id === e.target.value)
+                          const nameInput = document.getElementById('account_name') as HTMLInputElement
+                          if (selected && nameInput && !nameInput.value) nameInput.value = selected.name
+                        }}
+                        className="w-full px-3 py-2 rounded-md text-sm bg-[var(--dash-bg)] border border-[var(--dash-border)] text-[var(--dash-text)] outline-none"
+                      >
+                        <option value="">Select an account...</option>
+                        {availableAccounts.map(a => (
+                          <option key={a.id} value={a.id}>{a.name} ({a.id})</option>
+                        ))}
+                      </select>
+                    ) : (
+                      <Input
+                        id="ad_account_id"
+                        name="ad_account_id"
+                        type="text"
+                        required
+                        placeholder="act_123456789"
+                        className="bg-[var(--dash-bg)] border-[var(--dash-border)] text-[var(--dash-text)] placeholder:text-[var(--dash-text-muted)]"
+                      />
+                    )}
                     <p className="text-xs text-[var(--dash-text-muted)]">
-                      Found in Ads Manager URL: act_XXXXXXXXXX
+                      {availableAccounts.length > 0
+                        ? `${availableAccounts.length} accounts detected from your Meta token`
+                        : 'Found in Ads Manager URL: act_XXXXXXXXXX'}
                     </p>
                   </div>
                   <div className="space-y-2">

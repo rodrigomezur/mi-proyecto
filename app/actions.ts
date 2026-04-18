@@ -19,7 +19,7 @@ import {
   toggleAdAccountActive,
   getUserCreatives,
 } from '@/lib/db/queries'
-import { syncAdsForAccount } from '@/lib/meta/sync'
+import { syncAdsForAccount, fetchMetaAccounts } from '@/lib/meta/sync'
 import { analyzeImageWithGemini, analyzeVideoWithGemini, getVideoSourceUrl, generateIterationRecommendations, calculateIterationPriority } from '@/lib/meta/gemini'
 import { computeWinRateAnalysis, computeKillScale } from '@/lib/meta/analytics'
 import { aggregateReportData, generateAIInsights, saveReport } from '@/lib/meta/reports'
@@ -408,8 +408,75 @@ export async function addAdAccount(formData: FormData) {
     return { error: message }
   }
 
+  // Auto-sync if Meta token is configured (fire and forget)
+  const settings = await getUserSettings(check.profile.id)
+  if (settings?.meta_access_token) {
+    const formattedId = parsed.data.ad_account_id.startsWith('act_')
+      ? parsed.data.ad_account_id
+      : `act_${parsed.data.ad_account_id}`
+    const admin = createAdminClient()
+    const { data: job } = await admin.from('sync_jobs').insert({
+      user_id: check.profile.id,
+      ad_account_id: formattedId,
+      status: 'pending',
+    }).select('id').single()
+
+    // Fire and forget — sync runs in background
+    syncAdsForAccount(
+      check.profile.id,
+      formattedId,
+      settings.meta_access_token,
+      90, // initial baseline
+      settings.gemini_api_key,
+      job?.id,
+    ).catch(() => {
+      if (job?.id) admin.from('sync_jobs').update({
+        status: 'error',
+        error_message: 'Initial sync failed',
+        completed_at: new Date().toISOString(),
+      }).eq('id', job.id)
+    })
+  }
+
   revalidatePath('/dashboard/accounts')
-  return { success: true }
+  return { success: true, autoSyncStarted: !!settings?.meta_access_token }
+}
+
+export async function listAvailableMetaAccounts() {
+  const check = await requirePlan('solo', 'Meta accounts')
+  if ('error' in check) return { error: check.error }
+
+  const settings = await getUserSettings(check.profile.id)
+  if (!settings?.meta_access_token) {
+    return { error: 'No Meta access token configured. Go to Settings first.' }
+  }
+
+  try {
+    const accounts = await fetchMetaAccounts(settings.meta_access_token)
+    return { accounts }
+  } catch (err: unknown) {
+    return { error: err instanceof Error ? err.message : 'Failed to fetch accounts.' }
+  }
+}
+
+export async function getSyncJobStatus(accountId: string) {
+  const profile = await getOrCreateProfile()
+  const admin = createAdminClient()
+
+  const accounts = await getUserAdAccounts(profile.id)
+  const account = accounts.find(a => a.id === accountId)
+  if (!account) return null
+
+  const { data } = await admin
+    .from('sync_jobs')
+    .select('*')
+    .eq('user_id', profile.id)
+    .eq('ad_account_id', account.ad_account_id)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .single()
+
+  return data
 }
 
 export async function removeAdAccount(accountId: string) {
@@ -464,6 +531,13 @@ export async function syncAccount(accountId: string) {
     return { error: 'Account not found.' }
   }
 
+  const admin = createAdminClient()
+  const { data: job } = await admin.from('sync_jobs').insert({
+    user_id: check.profile.id,
+    ad_account_id: account.ad_account_id,
+    status: 'pending',
+  }).select('id').single()
+
   try {
     const result = await syncAdsForAccount(
       check.profile.id,
@@ -471,13 +545,21 @@ export async function syncAccount(accountId: string) {
       settings.meta_access_token,
       settings.date_range_days ?? 30,
       settings.gemini_api_key,
+      job?.id,
     )
 
     revalidatePath('/dashboard/accounts')
     revalidatePath('/dashboard/creatives')
-    return { success: true, totalAds: result.totalAds, synced: result.synced }
+    return { success: true, totalAds: result.totalAds, synced: result.synced, analyzed: result.analyzed }
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : 'Sync failed.'
+    if (job?.id) {
+      await admin.from('sync_jobs').update({
+        status: 'error',
+        error_message: message,
+        completed_at: new Date().toISOString(),
+      }).eq('id', job.id)
+    }
     return { error: message }
   }
 }
@@ -503,7 +585,15 @@ export async function syncAllAccounts() {
   let totalAds = 0
   const errors: string[] = []
 
+  const admin = createAdminClient()
+
   for (const account of activeAccounts) {
+    const { data: job } = await admin.from('sync_jobs').insert({
+      user_id: check.profile.id,
+      ad_account_id: account.ad_account_id,
+      status: 'pending',
+    }).select('id').single()
+
     try {
       const result = await syncAdsForAccount(
         check.profile.id,
@@ -511,12 +601,20 @@ export async function syncAllAccounts() {
         settings.meta_access_token,
         settings.date_range_days ?? 30,
         settings.gemini_api_key,
+        job?.id,
       )
       totalAds += result.totalAds
       totalSynced += result.synced
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Unknown error'
       errors.push(`${account.account_name}: ${message}`)
+      if (job?.id) {
+        await admin.from('sync_jobs').update({
+          status: 'error',
+          error_message: message,
+          completed_at: new Date().toISOString(),
+        }).eq('id', job.id)
+      }
     }
   }
 
@@ -671,7 +769,23 @@ export async function getMyAnalytics() {
   const winRate = computeWinRateAnalysis(creatives, threshold)
   const killScale = computeKillScale(creatives, threshold)
 
-  return { winRate, killScale }
+  // Iteration priorities: top 10 ads with highest priority score + iterations
+  const iterationPriorities = creatives
+    .filter(c => (c.iteration_priority ?? 0) > 0 && c.iteration_recommendations && Array.isArray(c.iteration_recommendations) && c.iteration_recommendations.length > 0)
+    .sort((a, b) => (b.iteration_priority ?? 0) - (a.iteration_priority ?? 0))
+    .slice(0, 10)
+    .map(c => ({
+      id: c.id,
+      ad_name: c.ad_name,
+      image_url: c.image_url,
+      video_thumbnail_url: c.video_thumbnail_url,
+      spend: c.spend,
+      roas: c.roas,
+      iteration_priority: c.iteration_priority ?? 0,
+      top_iteration: (c.iteration_recommendations as Array<{ title: string; focus_area: string; expected_impact: string }>)?.[0],
+    }))
+
+  return { winRate, killScale, iterationPriorities }
 }
 
 // ── Reports ───────────────────────────────────────────────────

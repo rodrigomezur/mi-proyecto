@@ -58,6 +58,75 @@ function formatCurrency(n: number) {
   return `$${n.toFixed(2)}`
 }
 
+function CreativeCard({ creative, onSelect }: { creative: Creative; onSelect: (c: Creative) => void }) {
+  return (
+    <Card
+      onClick={() => onSelect(creative)}
+      className="bg-[var(--dash-bg2)] border-[var(--dash-border)] overflow-hidden transition-all duration-200 hover:border-[var(--dash-border-bright)] hover:shadow-lg hover:shadow-black/20 cursor-pointer"
+    >
+      {creative.image_url ? (
+        <div className="h-40 bg-[var(--dash-bg3)] overflow-hidden">
+          <img src={creative.image_url} alt={creative.ad_name || ''} className="w-full h-full object-cover" />
+        </div>
+      ) : (
+        <div className="h-40 bg-[var(--dash-bg3)] flex items-center justify-center">
+          <span className="text-3xl opacity-20">{creative.ad_type === 'video' ? '\u25B6' : '\u25A3'}</span>
+        </div>
+      )}
+
+      <CardContent className="pt-4 pb-4">
+        <div className="flex items-start justify-between gap-2 mb-3">
+          <h3 className="text-sm font-medium text-[var(--dash-text)] line-clamp-2" title={creative.ad_name || undefined}>
+            {creative.ad_name || 'Unnamed Ad'}
+          </h3>
+          <div className="flex gap-1 shrink-0">
+            <Badge variant="outline" className={`text-[10px] ${creative.ad_type === 'video' ? 'border-blue-400/30 text-blue-400' : 'border-purple-400/30 text-purple-400'}`}>
+              {creative.ad_type || '?'}
+            </Badge>
+            {creative.ad_status === 'ACTIVE' && (
+              <Badge className="bg-emerald-400/10 text-emerald-400 border-emerald-400/20 text-[10px]">Live</Badge>
+            )}
+          </div>
+        </div>
+        <p className="text-[11px] text-[var(--dash-text-muted)] mb-3 truncate">{creative.campaign || 'No campaign'}</p>
+        <div className="grid grid-cols-3 gap-x-4 gap-y-2 text-[11px]">
+          <div>
+            <span className="text-[var(--dash-text-muted)]">Spend</span>
+            <p className="font-semibold text-[var(--dash-text)]">${creative.spend.toFixed(2)}</p>
+          </div>
+          <div>
+            <span className="text-[var(--dash-text-muted)]">ROAS</span>
+            <p className={`font-semibold ${creative.roas >= 1 ? 'text-emerald-400' : 'text-[var(--dash-text)]'}`}>{creative.roas.toFixed(2)}x</p>
+          </div>
+          <div>
+            <span className="text-[var(--dash-text-muted)]">CTR</span>
+            <p className="font-semibold text-[var(--dash-text)]">{creative.ctr.toFixed(2)}%</p>
+          </div>
+          {creative.ad_type === 'video' ? (
+            <>
+              <div><span className="text-[var(--dash-text-muted)]">Hook</span><p className="font-semibold text-[var(--dash-text)]">{(creative.hook_rate * 100).toFixed(1)}%</p></div>
+              <div><span className="text-[var(--dash-text-muted)]">Hold</span><p className="font-semibold text-[var(--dash-text)]">{(creative.hold_rate * 100).toFixed(1)}%</p></div>
+              <div><span className="text-[var(--dash-text-muted)]">CPA</span><p className="font-semibold text-[var(--dash-text)]">${creative.cpa.toFixed(2)}</p></div>
+            </>
+          ) : (
+            <>
+              <div><span className="text-[var(--dash-text-muted)]">CPA</span><p className="font-semibold text-[var(--dash-text)]">${creative.cpa.toFixed(2)}</p></div>
+              <div><span className="text-[var(--dash-text-muted)]">Clicks</span><p className="font-semibold text-[var(--dash-text)]">{creative.clicks}</p></div>
+              <div><span className="text-[var(--dash-text-muted)]">Impr</span><p className="font-semibold text-[var(--dash-text)]">{creative.impressions >= 1000 ? `${(creative.impressions/1000).toFixed(1)}K` : creative.impressions}</p></div>
+            </>
+          )}
+        </div>
+        {creative.funnel_stage && (
+          <div className="mt-3 flex gap-1 flex-wrap">
+            <Badge variant="outline" className="border-[var(--dash-border)] text-[var(--dash-text-muted)] text-[10px]">{creative.funnel_stage}</Badge>
+            {creative.asset_type && <Badge variant="outline" className="border-[var(--dash-border)] text-[var(--dash-text-muted)] text-[10px]">{creative.asset_type}</Badge>}
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  )
+}
+
 function formatPercent(n: number) {
   return `${(n * 100).toFixed(1)}%`
 }
@@ -80,6 +149,7 @@ export default function CreativesClient({
   const [filterType, setFilterType] = useState('')
   const [filterStatus, setFilterStatus] = useState('')
   const [sortBy, setSortBy] = useState('spend')
+  const [groupBy, setGroupBy] = useState<string>('')
   const [selected, setSelected] = useState<Creative | null>(null)
 
   const filtered = useMemo(() => {
@@ -112,6 +182,21 @@ export default function CreativesClient({
 
     return result
   }, [initialCreatives, search, filterAccount, filterType, filterStatus, sortBy])
+
+  const grouped = useMemo(() => {
+    if (!groupBy) return null
+    const groups: Record<string, Creative[]> = {}
+    filtered.forEach(c => {
+      const key = (c as unknown as Record<string, string | null>)[groupBy] || 'Unanalyzed'
+      if (!groups[key]) groups[key] = []
+      groups[key].push(c)
+    })
+    return Object.entries(groups).sort((a, b) => {
+      const aSpend = a[1].reduce((s, c) => s + c.spend, 0)
+      const bSpend = b[1].reduce((s, c) => s + c.spend, 0)
+      return bSpend - aSpend
+    })
+  }, [filtered, groupBy])
 
   // Stats
   const totalSpend = initialCreatives.reduce((sum, c) => sum + c.spend, 0)
@@ -248,12 +333,55 @@ export default function CreativesClient({
                 <option value="hold_rate">Sort: Hold Rate</option>
                 <option value="impressions">Sort: Impressions</option>
               </select>
+              <select
+                value={groupBy}
+                onChange={e => setGroupBy(e.target.value)}
+                className="px-3 py-2 rounded-md text-sm bg-[var(--dash-bg2)] border border-[var(--dash-border)] text-[var(--dash-text)] outline-none"
+              >
+                <option value="">No grouping</option>
+                <option value="asset_type">Group: Asset Type</option>
+                <option value="hook_tactic">Group: Hook Tactic</option>
+                <option value="messaging_angle">Group: Messaging</option>
+                <option value="visual_format">Group: Visual Format</option>
+                <option value="funnel_stage">Group: Funnel Stage</option>
+                <option value="campaign">Group: Campaign</option>
+              </select>
               <Badge variant="outline" className="self-center border-[var(--dash-border)] text-[var(--dash-text-muted)] px-3 py-2">
                 {filtered.length} results
               </Badge>
             </div>
 
-            {/* Creatives grid */}
+            {/* Grouped view */}
+            {grouped ? (
+              <div className="space-y-6">
+                {grouped.map(([groupName, items]) => {
+                  const groupSpend = items.reduce((s, c) => s + c.spend, 0)
+                  const groupRoas = items.filter(c => c.roas > 0).length > 0
+                    ? items.filter(c => c.roas > 0).reduce((s, c) => s + c.roas, 0) / items.filter(c => c.roas > 0).length
+                    : 0
+                  return (
+                    <div key={groupName}>
+                      <div className="flex items-center justify-between mb-3">
+                        <div className="flex items-center gap-3">
+                          <h3 className="text-sm font-semibold text-[var(--dash-text)]">{groupName}</h3>
+                          <Badge variant="outline" className="border-[var(--dash-border)] text-[var(--dash-text-muted)] text-[10px]">
+                            {items.length} ads
+                          </Badge>
+                        </div>
+                        <div className="flex gap-4 text-xs">
+                          <span className="text-[var(--dash-text-muted)]">Spend: <span className="text-[var(--dash-text)] font-semibold">{formatCurrency(groupSpend)}</span></span>
+                          <span className="text-[var(--dash-text-muted)]">Avg ROAS: <span className="text-[var(--dash-text)] font-semibold">{groupRoas.toFixed(2)}x</span></span>
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                        {items.map(creative => <CreativeCard key={creative.id} creative={creative} onSelect={setSelected} />)}
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            ) : (
+            /* Flat grid */
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
               {filtered.map(creative => (
                 <Card
@@ -375,6 +503,7 @@ export default function CreativesClient({
                 </Card>
               ))}
             </div>
+            )}
           </>
         )}
       </div>

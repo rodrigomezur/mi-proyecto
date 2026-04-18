@@ -42,6 +42,16 @@ type Analytics = {
     kill: Recommendation[]
     benchmarks: { avgROAS: number; avgCPA: number; avgHookRate: number; avgHoldRate: number; avgCTR: number }
   }
+  iterationPriorities: Array<{
+    id: string
+    ad_name: string | null
+    image_url: string | null
+    video_thumbnail_url: string | null
+    spend: number
+    roas: number
+    iteration_priority: number
+    top_iteration: { title: string; focus_area: string; expected_impact: string } | null | undefined
+  }>
 }
 
 function formatCurrency(n: number) { return `$${n.toFixed(2)}` }
@@ -209,6 +219,49 @@ export default function AnalyticsClient({ analytics }: { analytics: Analytics })
               <RecommendationList title="Watch" items={killScale.watch} color="var(--color-yellow, #fbbf24)" />
               <RecommendationList title="Kill" items={killScale.kill} color="var(--color-red, #f87171)" />
             </div>
+
+            {/* Iteration Priority */}
+            {analytics.iterationPriorities && analytics.iterationPriorities.length > 0 && (
+              <>
+                <h2 className="text-sm font-semibold text-[var(--dash-text)] mt-8 mb-4" style={{ fontFamily: 'var(--font-syne), sans-serif' }}>
+                  Iteration Priority
+                </h2>
+                <p className="text-xs text-[var(--dash-text-muted)] mb-4">
+                  Top ads with highest iteration priority score (high spend + underperforming).
+                </p>
+                <div className="space-y-2">
+                  {analytics.iterationPriorities.map(ad => (
+                    <Card key={ad.id} className="bg-[var(--dash-bg2)] border-[var(--dash-border)]">
+                      <CardContent className="pt-3 pb-3">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-md bg-[var(--dash-bg3)] overflow-hidden shrink-0">
+                            {(ad.image_url || ad.video_thumbnail_url) && (
+                              <img src={(ad.image_url || ad.video_thumbnail_url)!} alt="" className="w-full h-full object-cover" />
+                            )}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm text-[var(--dash-text)] truncate">{ad.ad_name || 'Unnamed'}</p>
+                            {ad.top_iteration && (
+                              <p className="text-[11px] text-[var(--dash-text-muted)] truncate">
+                                <span className="text-[var(--acid)]">{ad.top_iteration.focus_area}:</span> {ad.top_iteration.title}
+                              </p>
+                            )}
+                          </div>
+                          <div className="text-right shrink-0">
+                            <p className="text-sm font-bold text-[var(--acid)]">{ad.iteration_priority.toFixed(0)}</p>
+                            <p className="text-[10px] text-[var(--dash-text-muted)]">priority</p>
+                          </div>
+                          <div className="text-right shrink-0 hidden sm:block">
+                            <p className="text-xs text-[var(--dash-text)]">{formatCurrency(ad.spend)}</p>
+                            <p className="text-[10px] text-[var(--dash-text-muted)]">{ad.roas.toFixed(2)}x ROAS</p>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              </>
+            )}
           </>
         )}
       </div>
